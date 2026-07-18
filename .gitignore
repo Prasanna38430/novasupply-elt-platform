@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Secrets and environment — the .env file holds real credentials, never commit it
+.env
+*.pem
+*.key
+
+# Local data: keep the folder structure, ignore the actual files
+data/raw/*
+!data/raw/.gitkeep
+*.duckdb
+*.duckdb.wal
+
+# dbt build artefacts
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+logs/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

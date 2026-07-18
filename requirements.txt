@@ -1,0 +1,8 @@
+# Local development stack. Everything here runs against DuckDB — no cloud
+# dependencies yet (those arrive in Phase 7). See docs/adr/0001 for the why.
+dbt-duckdb>=1.8
+duckdb>=1.0
+pandas>=2.0
+pyarrow>=14.0
+python-dotenv>=1.0
+faker>=20.0
