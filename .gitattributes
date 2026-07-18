@@ -1,0 +1,6 @@
+# Normalise line endings so the repo is identical across machines.
+* text=auto eol=lf
+
+# Windows-only scripts genuinely need CRLF.
+*.bat text eol=crlf
+*.ps1 text eol=crlf
