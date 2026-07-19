@@ -17,10 +17,11 @@ data/raw/*
 *.duckdb
 *.duckdb.wal
 
-# dbt build artefacts
+# dbt build artefacts and machine-local files
 dbt/target/
 dbt/dbt_packages/
 dbt/logs/
+dbt/.user.yml
 logs/
 
 # OS / editor noise
