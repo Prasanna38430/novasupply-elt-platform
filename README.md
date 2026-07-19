@@ -63,7 +63,25 @@ python ingestion/load_raw.py
 
 This writes date-partitioned CSVs under `data/raw/` and builds the `raw` schema in
 `data/novasupply.duckdb`. Both are gitignored and reproduce identically from the seeded
-generators. Further steps are added here as the pipeline grows.
+generators.
+
+Then transform with dbt. dbt is run from the `dbt/` directory:
+
+```
+cd dbt
+dbt build --profiles-dir .    # staging -> intermediate -> marts, plus the snapshot
+```
+
+This builds the star schema (`dim_*`, `fct_*`) in the `marts` schema. To see Type-2
+history appear, run the snapshot, apply the sample supplier change, and snapshot again:
+
+```
+dbt snapshot --profiles-dir .
+python ../ingestion/simulate_supplier_change.py
+dbt snapshot --profiles-dir .
+```
+
+Further steps are added here as the pipeline grows.
 
 ## Cost
 
