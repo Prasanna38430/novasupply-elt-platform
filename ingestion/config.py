@@ -17,6 +17,9 @@ load_dotenv()
 # Where raw files land. Mirrors the eventual S3 layout; overridable via .env.
 RAW_DATA_DIR = Path(os.getenv("RAW_DATA_DIR", "data/raw"))
 
+# The local DuckDB warehouse file. Stands in for Snowflake during local dev.
+DUCKDB_PATH = Path(os.getenv("DUCKDB_PATH", "data/novasupply.duckdb"))
+
 # One seed makes every generator reproducible.
 SEED = 42
 
