@@ -1,0 +1,17 @@
+snapshots:
+  - name: suppliers_snapshot
+    relation: ref('stg_suppliers')
+    description: >
+      Type-2 history for suppliers. When a tracked attribute changes (a renegotiated
+      lead time, drifting reliability), the check strategy closes the old row and opens
+      a new one, so we can ask what a supplier's terms were at any past date.
+    config:
+      schema: snapshots
+      unique_key: supplier_id
+      strategy: check
+      check_cols:
+        - supplier_name
+        - country
+        - city
+        - nominal_lead_time_days
+        - reliability_score
