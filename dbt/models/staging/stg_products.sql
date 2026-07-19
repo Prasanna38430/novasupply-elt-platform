@@ -7,6 +7,6 @@ select
     product_name,
     category,
     supplier_id,
-    cast(unit_cost_eur as double)  as unit_cost_eur,
-    cast(unit_price_eur as double) as unit_price_eur
+    {{ clean_cast('unit_cost_eur', 'double') }}  as unit_cost_eur,
+    {{ clean_cast('unit_price_eur', 'double') }} as unit_price_eur
 from source

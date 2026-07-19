@@ -4,13 +4,13 @@ with source as (
 
 select
     po_id,
-    cast(order_date as date)    as order_date,
+    {{ clean_cast('order_date', 'date') }}            as order_date,
     supplier_id,
     product_id,
     store_id,
-    cast(ordered_qty as integer) as ordered_qty,
-    cast(promised_date as date)  as promised_date,
-    -- Open orders arrive as empty strings in RAW; make them proper NULLs before casting.
-    cast(nullif(actual_delivery_date, '') as date)  as actual_delivery_date,
-    cast(nullif(received_qty, '') as integer)       as received_qty
+    {{ clean_cast('ordered_qty', 'integer') }}        as ordered_qty,
+    {{ clean_cast('promised_date', 'date') }}         as promised_date,
+    -- Open orders arrive blank in RAW; clean_cast turns those into proper NULLs.
+    {{ clean_cast('actual_delivery_date', 'date') }}  as actual_delivery_date,
+    {{ clean_cast('received_qty', 'integer') }}       as received_qty
 from source

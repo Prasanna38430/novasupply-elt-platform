@@ -7,7 +7,7 @@ select
     supplier_name,
     country,
     city,
-    cast(nominal_lead_time_days as integer) as nominal_lead_time_days,
-    cast(reliability_score as double)       as reliability_score,
-    cast(valid_from as date)                as valid_from
+    {{ clean_cast('nominal_lead_time_days', 'integer') }} as nominal_lead_time_days,
+    {{ clean_cast('reliability_score', 'double') }}       as reliability_score,
+    {{ clean_cast('valid_from', 'date') }}                as valid_from
 from source

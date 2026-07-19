@@ -3,10 +3,10 @@ with source as (
 )
 
 select
-    cast(snapshot_date as date)     as snapshot_date,
+    {{ clean_cast('snapshot_date', 'date') }}     as snapshot_date,
     store_id,
     product_id,
-    cast(on_hand_qty as integer)    as on_hand_qty,
-    cast(reorder_point as integer)  as reorder_point,
-    cast(in_transit_qty as integer) as in_transit_qty
+    {{ clean_cast('on_hand_qty', 'integer') }}    as on_hand_qty,
+    {{ clean_cast('reorder_point', 'integer') }}  as reorder_point,
+    {{ clean_cast('in_transit_qty', 'integer') }} as in_transit_qty
 from source

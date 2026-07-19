@@ -4,11 +4,11 @@ with source as (
 
 select
     sale_id,
-    cast(sale_date as date)        as sale_date,
+    {{ clean_cast('sale_date', 'date') }}        as sale_date,
     store_id,
     product_id,
-    cast(quantity as integer)      as quantity,
-    cast(unit_price_eur as double) as unit_price_eur,
-    cast(discount_pct as double)   as discount_pct,
-    cast(amount_eur as double)     as amount_eur
+    {{ clean_cast('quantity', 'integer') }}      as quantity,
+    {{ clean_cast('unit_price_eur', 'double') }} as unit_price_eur,
+    {{ clean_cast('discount_pct', 'double') }}   as discount_pct,
+    {{ clean_cast('amount_eur', 'double') }}     as amount_eur
 from source
