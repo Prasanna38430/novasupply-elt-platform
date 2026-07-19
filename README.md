@@ -53,7 +53,17 @@ pip install -r requirements.txt
 copy .env.example .env         # then fill in values as needed
 ```
 
-Further steps are added here as the pipeline grows.
+Then generate the synthetic data and load it into the local DuckDB warehouse:
+
+```
+python ingestion/generate_dimensions.py
+python ingestion/generate_facts.py
+python ingestion/load_raw.py
+```
+
+This writes date-partitioned CSVs under `data/raw/` and builds the `raw` schema in
+`data/novasupply.duckdb`. Both are gitignored and reproduce identically from the seeded
+generators. Further steps are added here as the pipeline grows.
 
 ## Cost
 
