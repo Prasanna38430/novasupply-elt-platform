@@ -1,0 +1,12 @@
+# dbt connection profile. Committed to the repo because the local DuckDB target holds
+# no secrets. The Snowflake target added in Phase 7 will read credentials from
+# environment variables, never hard-coded here.
+#
+# dbt is always run from this directory, so the relative paths below resolve correctly.
+novasupply:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "../data/novasupply.duckdb"
+      threads: 4
