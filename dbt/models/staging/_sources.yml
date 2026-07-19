@@ -1,0 +1,15 @@
+version: 2
+
+sources:
+  - name: raw
+    description: >
+      Untyped landing tables loaded from the partitioned raw zone by
+      ingestion/load_raw.py. Every column is text here; staging casts and cleans it.
+    schema: raw
+    tables:
+      - name: suppliers
+      - name: products
+      - name: stores
+      - name: sales
+      - name: inventory_snapshots
+      - name: purchase_orders
