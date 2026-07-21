@@ -1,0 +1,163 @@
+version: 2
+
+models:
+  - name: dim_suppliers
+    description: Supplier dimension. Current state; Type-2 history lives in the snapshot.
+    columns:
+      - name: supplier_id
+        description: Primary key.
+        data_tests: [unique, not_null]
+      - name: reliability_tier
+        description: Banded reliability_score, for grouping suppliers in the dashboard.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["High", "Medium", "Low"]
+      - name: reliability_score
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments: {min_value: 0, max_value: 1}
+
+  - name: dim_products
+    description: Product dimension with derived margin attributes.
+    columns:
+      - name: product_id
+        description: Primary key.
+        data_tests: [unique, not_null]
+      - name: supplier_id
+        description: Foreign key to dim_suppliers.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('dim_suppliers'), field: supplier_id}
+      - name: margin_pct
+        description: Share of the shelf price that is margin.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments: {min_value: 0, max_value: 1}
+
+  - name: dim_stores
+    description: Store dimension.
+    columns:
+      - name: store_id
+        data_tests: [unique, not_null]
+      - name: region
+        data_tests: [not_null]
+
+  - name: dim_date
+    description: Calendar spine covering the loaded history, one row per day.
+    columns:
+      - name: date_day
+        data_tests: [unique, not_null]
+      - name: iso_day_of_week
+        description: 1 = Monday through 7 = Sunday.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments: {min_value: 1, max_value: 7}
+
+  - name: fct_sales
+    description: Sales fact at store x SKU x day grain. Incremental on sale_date.
+    columns:
+      - name: sale_id
+        description: Degenerate dimension; the transaction id.
+        data_tests: [unique, not_null]
+      - name: sale_date
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('dim_date'), field: date_day}
+      - name: store_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('dim_stores'), field: store_id}
+      - name: product_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('dim_products'), field: product_id}
+      - name: quantity
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments: {min_value: 1}
+      - name: amount_eur
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments: {min_value: 0}
+
+  - name: fct_inventory
+    description: Daily stock position per store and SKU, with stockout and cover signals.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [snapshot_date, store_id, product_id]
+    columns:
+      - name: snapshot_date
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('dim_date'), field: date_day}
+      - name: store_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('dim_stores'), field: store_id}
+      - name: product_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('dim_products'), field: product_id}
+      - name: on_hand_qty
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments: {min_value: 0}
+      - name: is_stockout
+        description: True when on_hand_qty is zero.
+        data_tests: [not_null]
+      - name: days_of_cover
+        description: >
+          Days the current stock lasts at the recent demand rate. Null when there is no
+          recent demand, since cover is undefined then.
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments: {min_value: 0}
+
+  - name: fct_purchase_orders
+    description: One row per replenishment order, with delay measures.
+    columns:
+      - name: po_id
+        data_tests: [unique, not_null]
+      - name: order_date
+        data_tests: [not_null]
+      - name: supplier_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('dim_suppliers'), field: supplier_id}
+      - name: product_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('dim_products'), field: product_id}
+      - name: store_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('dim_stores'), field: store_id}
+      - name: ordered_qty
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments: {min_value: 1}
+      - name: is_open
+        description: True while the order has not yet been delivered.
+        data_tests: [not_null]
+      - name: delay_days
+        description: Days past the promised date. Null while the order is open.
