@@ -69,8 +69,13 @@ Then transform with dbt. dbt is run from the `dbt/` directory:
 
 ```
 cd dbt
-dbt build --profiles-dir .    # staging -> intermediate -> marts, plus the snapshot
+dbt deps --profiles-dir .     # first time only: installs dbt_utils and Elementary
+dbt build --profiles-dir .    # models, tests and the snapshot, in dependency order
 ```
+
+Elementary's own models dominate the build time, so while iterating use
+`dbt build --exclude elementary --profiles-dir .` and keep the full build for scheduled
+runs and CI.
 
 This builds the star schema (`dim_*`, `fct_*`) in the `marts` schema. To see Type-2
 history appear, run the snapshot, apply the sample supplier change, and snapshot again:
@@ -82,6 +87,25 @@ dbt snapshot --profiles-dir .
 ```
 
 Further steps are added here as the pipeline grows.
+
+## Data quality
+
+Three layers, because they catch different things.
+
+**Tests** (119 of them) assert the contracts: dimension keys are unique, every fact
+foreign key resolves, quantities are positive, `reliability_score` sits between 0 and 1,
+and the fact grains hold. Alongside the generic tests there are singular tests for
+business rules that structural checks miss — revenue reconciling to its own components,
+`is_late` agreeing with the delivery dates it derives from.
+
+**Quarantine** handles bad rows without stopping the line. Invalid sale rows are diverted
+into `quarantine.quarantine_sales` with the reason they failed, while valid rows carry
+on. A malformed row degrades the numbers slightly instead of failing the nightly run, and
+someone can still go and look at what broke. `ingestion/simulate_bad_data.py` inserts
+deliberately broken rows to demonstrate it.
+
+**Elementary** keeps the history: test outcomes over time, model run durations, schema
+changes. See [ADR 0004](docs/adr/0004-elementary-for-observability.md).
 
 ## Cost
 
