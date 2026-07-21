@@ -27,3 +27,6 @@ models:
     marts:
       +materialized: table
       +schema: marts
+    quarantine:
+      +materialized: table
+      +schema: quarantine

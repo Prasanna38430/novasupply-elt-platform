@@ -1,14 +1,5 @@
-with source as (
-    select * from {{ source('raw', 'sales') }}
-)
-
-select
-    sale_id,
-    {{ clean_cast('sale_date', 'date') }}        as sale_date,
-    store_id,
-    product_id,
-    {{ clean_cast('quantity', 'integer') }}      as quantity,
-    {{ clean_cast('unit_price_eur', 'double') }} as unit_price_eur,
-    {{ clean_cast('discount_pct', 'double') }}   as discount_pct,
-    {{ clean_cast('amount_eur', 'double') }}     as amount_eur
-from source
+-- Valid sale rows only. Anything failing the rule is diverted to quarantine_sales, so a
+-- handful of malformed rows degrades the numbers slightly instead of failing the run.
+select *
+from {{ ref('stg_sales__typed') }}
+where {{ sales_row_is_valid() }}
