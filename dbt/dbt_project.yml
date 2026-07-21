@@ -30,3 +30,8 @@ models:
     quarantine:
       +materialized: table
       +schema: quarantine
+
+  # Elementary keeps its own observability tables (run results, test outcomes,
+  # anomaly history) out of the way in a dedicated schema.
+  elementary:
+    +schema: elementary
