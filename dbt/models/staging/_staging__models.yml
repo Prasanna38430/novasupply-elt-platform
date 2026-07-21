@@ -1,0 +1,181 @@
+version: 2
+
+models:
+  - name: stg_suppliers
+    description: One row per supplier, typed and cleaned from the raw landing table.
+    columns:
+      - name: supplier_id
+        description: Business key, e.g. SUP-0007.
+        data_tests: [unique, not_null]
+      - name: supplier_name
+        data_tests: [not_null]
+      - name: nominal_lead_time_days
+        description: Contracted days between placing an order and delivery.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments: {min_value: 1, max_value: 60}
+      - name: reliability_score
+        description: 0-1, where higher means more deliveries arrive on time.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments: {min_value: 0, max_value: 1}
+      - name: valid_from
+        data_tests: [not_null]
+
+  - name: stg_products
+    description: One row per SKU, linked to the supplier that provides it.
+    data_tests:
+      # A product we sell for less than it costs would be a data problem, not a promotion.
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "unit_price_eur >= unit_cost_eur"
+    columns:
+      - name: product_id
+        description: SKU code, e.g. SKU-00042.
+        data_tests: [unique, not_null]
+      - name: category
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["Épicerie", "Frais", "Boissons", "Hygiène", "Surgelés"]
+      - name: supplier_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('stg_suppliers'), field: supplier_id}
+      - name: unit_cost_eur
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments: {min_value: 0}
+      - name: unit_price_eur
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments: {min_value: 0}
+
+  - name: stg_stores
+    description: One row per retail store.
+    columns:
+      - name: store_id
+        data_tests: [unique, not_null]
+      - name: store_name
+        data_tests: [not_null]
+      - name: region
+        data_tests: [not_null]
+
+  - name: stg_sales
+    description: One row per sale line, at store x SKU x day grain.
+    columns:
+      - name: sale_id
+        data_tests: [unique, not_null]
+      - name: sale_date
+        data_tests: [not_null]
+      - name: store_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('stg_stores'), field: store_id}
+      - name: product_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('stg_products'), field: product_id}
+      - name: quantity
+        description: Units sold. A sale line with no units is meaningless.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments: {min_value: 1}
+      - name: discount_pct
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments: {min_value: 0, max_value: 1}
+      - name: amount_eur
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments: {min_value: 0}
+
+  - name: stg_inventory_snapshots
+    description: Daily stock position per store and SKU.
+    data_tests:
+      # The grain: exactly one snapshot per store, SKU and day.
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [snapshot_date, store_id, product_id]
+    columns:
+      - name: snapshot_date
+        data_tests: [not_null]
+      - name: store_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('stg_stores'), field: store_id}
+      - name: product_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('stg_products'), field: product_id}
+      - name: on_hand_qty
+        description: Units physically in stock. Never negative.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments: {min_value: 0}
+      - name: reorder_point
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments: {min_value: 0}
+      - name: in_transit_qty
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments: {min_value: 0}
+
+  - name: stg_purchase_orders
+    description: One row per replenishment order placed with a supplier.
+    data_tests:
+      # A supplier cannot promise delivery before the order exists.
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "promised_date >= order_date"
+    columns:
+      - name: po_id
+        data_tests: [unique, not_null]
+      - name: order_date
+        data_tests: [not_null]
+      - name: supplier_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('stg_suppliers'), field: supplier_id}
+      - name: product_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('stg_products'), field: product_id}
+      - name: store_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('stg_stores'), field: store_id}
+      - name: ordered_qty
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments: {min_value: 1}
+      - name: promised_date
+        data_tests: [not_null]
+      - name: actual_delivery_date
+        description: Null while the order is still in transit.
+      - name: received_qty
+        description: Null until the order arrives; may be short of ordered_qty.
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments: {min_value: 0}
