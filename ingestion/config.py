@@ -14,11 +14,22 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Anchor everything to the repo root rather than the working directory, so the scripts
+# behave the same whether they are run from the project root, from dbt/, or by Airflow.
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+
+def _project_path(env_var: str, default: str) -> Path:
+    """Resolve a configured path, treating relative values as relative to the repo root."""
+    value = Path(os.getenv(env_var, default))
+    return value if value.is_absolute() else PROJECT_ROOT / value
+
+
 # Where raw files land. Mirrors the eventual S3 layout; overridable via .env.
-RAW_DATA_DIR = Path(os.getenv("RAW_DATA_DIR", "data/raw"))
+RAW_DATA_DIR = _project_path("RAW_DATA_DIR", "data/raw")
 
 # The local DuckDB warehouse file. Stands in for Snowflake during local dev.
-DUCKDB_PATH = Path(os.getenv("DUCKDB_PATH", "data/novasupply.duckdb"))
+DUCKDB_PATH = _project_path("DUCKDB_PATH", "data/novasupply.duckdb")
 
 # One seed makes every generator reproducible.
 SEED = 42
