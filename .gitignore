@@ -24,6 +24,10 @@ dbt/logs/
 dbt/.user.yml
 logs/
 
+# Airflow runtime artefacts
+airflow/logs/
+airflow/plugins/
+
 # OS / editor noise
 .DS_Store
 Thumbs.db

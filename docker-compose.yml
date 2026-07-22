@@ -1,0 +1,86 @@
+# Local Airflow for the NovaSupply pipeline.
+#
+# Deliberately lean: LocalExecutor with Postgres, no Redis / Celery / Flower. The
+# standard Airflow compose file wants 4-6 GB of RAM, and this machine gives Docker 2 GB.
+# LocalExecutor is a legitimate single-node setup, not just a shortcut -- see
+# docs/adr/0005-airflow-localexecutor.md.
+
+x-airflow-common: &airflow-common
+  build:
+    context: .
+    dockerfile: airflow/Dockerfile
+  environment: &airflow-common-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+    # Local development only. A real deployment reads this from a secret store.
+    AIRFLOW__WEBSERVER__SECRET_KEY: novasupply-local-dev
+    # Memory economy: the webserver defaults to 4 gunicorn workers, the scheduler to
+    # several parsing processes. On a 2 GB budget one of each is plenty.
+    AIRFLOW__WEBSERVER__WORKERS: "1"
+    AIRFLOW__SCHEDULER__PARSING_PROCESSES: "1"
+    AIRFLOW__SCHEDULER__MIN_FILE_PROCESS_INTERVAL: "60"
+  volumes:
+    - ./airflow/dags:/opt/airflow/dags
+    - ./airflow/logs:/opt/airflow/logs
+    - ./ingestion:/opt/airflow/project/ingestion
+    - ./dbt:/opt/airflow/project/dbt
+    - ./data:/opt/airflow/project/data
+
+services:
+  postgres:
+    image: postgres:13-alpine
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Runs once to create the metadata schema and the admin login, then exits.
+  airflow-init:
+    <<: *airflow-common
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        airflow db migrate
+        airflow users create \
+          --username admin --password admin \
+          --firstname Admin --lastname User \
+          --role Admin --email admin@novasupply.local || true
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-webserver:
+    <<: *airflow-common
+    command: webserver
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+
+volumes:
+  postgres-db:

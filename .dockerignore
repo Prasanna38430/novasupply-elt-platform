@@ -1,0 +1,13 @@
+# Keep the build context small. Everything here is either huge, machine-local, or
+# bind-mounted into the container at runtime anyway.
+.venv/
+data/
+.git/
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+airflow/logs/
+**/__pycache__/
+*.duckdb
+*.duckdb.wal
+.env
