@@ -12,9 +12,21 @@ every week: which SKUs are about to stock out, and which supplier delays caused 
 NovaSupply is the platform that answers it. It pulls the siloed data together, models
 it into a star schema, tests it for trustworthiness, and serves the answer.
 
+## Project status
+
+Working end to end today: data generation, the DuckDB raw layer, the full dbt star
+schema with SCD2 snapshots and an incremental fact, 119 data tests plus quarantining of
+bad rows, Elementary observability, Airflow orchestration in Docker, and CI on every
+push.
+
+Not built yet: the Terraform/S3 infrastructure, the Snowflake migration with RBAC and PII
+masking, the warehouse cost dashboard, and the Streamlit serving layer. The architecture
+below describes the finished design; those pieces are named in the stack because they are
+the plan, not because they exist.
+
 ## Architecture
 
-<!-- Diagram added in Phase 9. -->
+<!-- Diagram added in the hardening phase. -->
 
 Python extractors land raw data in a partitioned raw zone (local files, then S3). The
 warehouse (DuckDB locally, Snowflake in the cloud) holds it across RAW, STAGING and
@@ -46,18 +58,34 @@ dashboard. The reasoning is in [docs/adr/0001-local-first-duckdb.md](docs/adr/00
 
 Requires Python 3.11+ and git.
 
-```
-git clone <repo-url>
-cd novasupply
+```bash
+git clone https://github.com/Prasanna38430/novasupply-elt-platform.git
+cd novasupply-elt-platform
 python -m venv .venv
-.venv\Scripts\activate        # Windows; use source .venv/bin/activate on macOS/Linux
-pip install -r requirements.txt
-copy .env.example .env         # then fill in values as needed
 ```
+
+On Windows:
+
+```bash
+.venv\Scripts\activate
+pip install -r requirements.txt
+copy .env.example .env
+```
+
+On macOS or Linux:
+
+```bash
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+```
+
+Nothing in `.env` needs filling in for local development — the defaults point at DuckDB.
+The cloud values matter only from the Snowflake phase onward.
 
 Then generate the synthetic data and load it into the local DuckDB warehouse:
 
-```
+```bash
 python ingestion/generate_dimensions.py
 python ingestion/generate_facts.py
 python ingestion/load_raw.py
@@ -69,7 +97,7 @@ generators.
 
 Then transform with dbt. dbt is run from the `dbt/` directory:
 
-```
+```bash
 cd dbt
 dbt deps --profiles-dir .     # first time only: installs dbt_utils and Elementary
 dbt build --profiles-dir .    # models, tests and the snapshot, in dependency order
@@ -82,26 +110,28 @@ runs and CI.
 This builds the star schema (`dim_*`, `fct_*`) in the `marts` schema. To see Type-2
 history appear, run the snapshot, apply the sample supplier change, and snapshot again:
 
-```
+```bash
 dbt snapshot --profiles-dir .
 python ../ingestion/simulate_supplier_change.py
 dbt snapshot --profiles-dir .
 ```
 
-Further steps are added here as the pipeline grows.
+`SUP-0002` then has two versions: the old row closed off with a `dbt_valid_to`, and the
+new one current. The ingestion scripts resolve their paths against the repo root, so they
+work from any directory.
 
 ## Orchestration
 
 Airflow runs the whole pipeline on a nightly schedule. Bring it up with:
 
-```
+```bash
 docker compose up -d --build
 ```
 
 The UI is at http://localhost:8080 (admin / admin — local development only). The
 `novasupply_pipeline` DAG chains the six steps in order:
 
-```
+```text
 generate_dimensions -> generate_facts -> load_raw -> dbt_run -> dbt_snapshot -> dbt_test
 ```
 
