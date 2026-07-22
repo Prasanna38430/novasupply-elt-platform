@@ -88,6 +88,29 @@ dbt snapshot --profiles-dir .
 
 Further steps are added here as the pipeline grows.
 
+## Orchestration
+
+Airflow runs the whole pipeline on a nightly schedule. Bring it up with:
+
+```
+docker compose up -d --build
+```
+
+The UI is at http://localhost:8080 (admin / admin — local development only). The
+`novasupply_pipeline` DAG chains the six steps in order:
+
+```
+generate_dimensions -> generate_facts -> load_raw -> dbt_run -> dbt_snapshot -> dbt_test
+```
+
+A full run takes about five minutes. Tear it down with `docker compose down`, or
+`docker compose down -v` to drop the Airflow metadata database as well.
+
+The setup is deliberately lean — LocalExecutor with Postgres, no Celery or Redis — because
+the container budget here is 2 GB. dbt lives in its own virtualenv inside the image so its
+dependencies do not collide with Airflow's. Both choices are explained in
+[ADR 0005](docs/adr/0005-airflow-localexecutor.md).
+
 ## Data quality
 
 Three layers, because they catch different things.
