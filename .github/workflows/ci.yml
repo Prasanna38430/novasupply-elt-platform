@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# A newer push to the same branch makes an in-flight run pointless.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pipeline:
+    name: Build and test the pipeline
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # The generators are seeded, so CI builds the same dataset every time and a test
+      # failure means the code changed, not that the data got lucky.
+      - name: Generate raw data
+        run: |
+          python ingestion/generate_dimensions.py
+          python ingestion/generate_facts.py
+
+      - name: Load into DuckDB
+        run: python ingestion/load_raw.py
+
+      - name: Install dbt packages
+        working-directory: dbt
+        run: dbt deps --profiles-dir .
+
+      - name: dbt build
+        working-directory: dbt
+        run: dbt build --profiles-dir .
+
+      # Makes a failed run diagnosable without rerunning it locally.
+      - name: Upload dbt artefacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dbt-target
+          path: |
+            dbt/target/
+            dbt/logs/
+          retention-days: 7
+
+  airflow-dag:
+    name: Validate Airflow DAG
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install Airflow
+        run: |
+          pip install "apache-airflow==2.10.5" \
+            --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.10.5/constraints-3.11.txt"
+
+      - name: Check the DAG imports cleanly
+        env:
+          AIRFLOW_HOME: ${{ runner.temp }}/airflow
+          AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+        run: |
+          python - <<'PY'
+          from airflow.models import DagBag
+
+          bag = DagBag(dag_folder="airflow/dags", include_examples=False)
+          if bag.import_errors:
+              for path, error in bag.import_errors.items():
+                  print(f"--- {path}\n{error}")
+              raise SystemExit("DAG import failed")
+          print(f"parsed {len(bag.dags)} DAG(s): {sorted(bag.dags)}")
+          PY
