@@ -1,5 +1,7 @@
 # NovaSupply
 
+[![CI](https://github.com/Prasanna38430/novasupply-elt-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/Prasanna38430/novasupply-elt-platform/actions/workflows/ci.yml)
+
 A governed, cost-monitored ELT platform for retail and supply-chain analytics.
 
 ## The problem
@@ -129,6 +131,17 @@ deliberately broken rows to demonstrate it.
 
 **Elementary** keeps the history: test outcomes over time, model run durations, schema
 changes. See [ADR 0004](docs/adr/0004-elementary-for-observability.md).
+
+## Continuous integration
+
+Every push and pull request to `main` rebuilds the platform from nothing on a clean
+runner: generate the data, load it, `dbt build`, and run all 119 tests. It takes about 70
+seconds. Because the generators are seeded, CI produces the same dataset every time, so a
+failing test means the code changed rather than the data getting unlucky. A second job
+parses the Airflow DAG, which otherwise only breaks when the scheduler tries to run it.
+
+Build artefacts (`dbt/target`, `dbt/logs`) are uploaded on every run, pass or fail, so a
+red build can be diagnosed without reproducing it locally.
 
 ## Cost
 
