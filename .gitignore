@@ -24,6 +24,17 @@ dbt/logs/
 dbt/.user.yml
 logs/
 
+# Terraform. State can contain resource metadata and secrets, so it never goes in git;
+# .tfvars files hold real values, unlike the committed .example.
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+crash.*.log
+.terraform.lock.hcl.bak
+
 # Airflow runtime artefacts
 airflow/logs/
 airflow/plugins/
@@ -33,3 +44,7 @@ airflow/plugins/
 Thumbs.db
 .vscode/
 .idea/
+
+# Saved plan files embed the planned state, including variable values.
+tfplan
+*.tfplan
