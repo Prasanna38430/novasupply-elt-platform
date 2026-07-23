@@ -16,5 +16,5 @@ select
     sum(s.quantity) / 28.0  as avg_daily_units
 from sales s
 cross join bounds b
-where date_diff('day', s.sale_date, b.max_date) < 28
+where {{ dbt.datediff('s.sale_date', 'b.max_date', 'day') }} < 28
 group by s.store_id, s.product_id

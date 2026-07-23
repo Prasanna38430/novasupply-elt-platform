@@ -1,12 +1,30 @@
-# dbt connection profile. Committed to the repo because the local DuckDB target holds
-# no secrets. The Snowflake target added in Phase 7 will read credentials from
-# environment variables, never hard-coded here.
+# dbt connection profiles. Committed because it contains no secrets: the local DuckDB
+# target needs none, and the Snowflake target reads everything from environment
+# variables, which scripts/dbt.ps1 loads from .env.
 #
-# dbt is always run from this directory, so the relative paths below resolve correctly.
+#   dbt build --profiles-dir .                     -> DuckDB (default)
+#   dbt build --profiles-dir . --target snowflake  -> Snowflake
+#
+# dbt is always run from this directory, so the relative path below resolves correctly.
 novasupply:
   target: dev
+
   outputs:
     dev:
       type: duckdb
       path: "../data/novasupply.duckdb"
       threads: 4
+
+    snowflake:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user: "{{ env_var('SNOWFLAKE_USER') }}"
+      password: "{{ env_var('SNOWFLAKE_PASSWORD') }}"
+      # dbt runs as the transformer role, not ACCOUNTADMIN. It can build every layer
+      # and nothing else, which is the point of having the role hierarchy.
+      role: NOVASUPPLY_TRANSFORMER
+      warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE') }}"
+      database: "{{ env_var('SNOWFLAKE_DATABASE') }}"
+      schema: PUBLIC
+      threads: 8
+      client_session_keep_alive: false

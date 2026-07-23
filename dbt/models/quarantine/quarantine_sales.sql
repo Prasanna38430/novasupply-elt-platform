@@ -14,6 +14,6 @@ select
         when discount_pct is null  then 'missing or unparseable discount_pct'
         else 'discount_pct outside 0-1'
     end as quarantine_reason,
-    now() as quarantined_at
+    {{ dbt.current_timestamp() }} as quarantined_at
 from {{ ref('stg_sales__typed') }}
 where not ({{ sales_row_is_valid() }})
