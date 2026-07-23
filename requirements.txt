@@ -1,8 +1,14 @@
-# Local development stack. Everything here runs against DuckDB — no cloud
-# dependencies yet (those arrive in Phase 7). See docs/adr/0001 for the why.
+# Local development and ingestion.
 dbt-duckdb>=1.8
 duckdb>=1.0
 pandas>=2.0
 pyarrow>=14.0
 python-dotenv>=1.0
 faker>=20.0
+
+# Cloud phase: S3 upload and the Snowflake warehouse.
+boto3>=1.34
+dbt-snowflake>=1.8
+
+# Serving.
+streamlit>=1.40

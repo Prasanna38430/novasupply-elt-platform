@@ -44,6 +44,7 @@ airflow/plugins/
 Thumbs.db
 .vscode/
 .idea/
+.claude/
 
 # Saved plan files embed the planned state, including variable values.
 tfplan
