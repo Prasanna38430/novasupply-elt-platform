@@ -46,6 +46,9 @@ Thumbs.db
 .idea/
 .claude/
 
+# Private, local-only notes (study guide, interview prep). Never committed.
+_private/
+
 # Saved plan files embed the planned state, including variable values.
 tfplan
 *.tfplan
