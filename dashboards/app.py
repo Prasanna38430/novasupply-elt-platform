@@ -155,7 +155,7 @@ st.divider()
 st.subheader("SKUs at risk of stocking out")
 st.caption(
     "Latest stock position, projected against recent demand. Items already being "
-    "replenished are excluded — those are handled; these are not."
+    "replenished are excluded, those are handled; these are not."
 )
 
 at_risk = query(f"""
@@ -277,4 +277,4 @@ d2.metric("dbt tests in the build", 119)
 if quarantined == 0:
     st.success("No rows quarantined in the latest load.")
 elif quarantined:
-    st.warning(f"{quarantined} row(s) quarantined — inspect `quarantine_sales` for the reason.")
+    st.warning(f"{quarantined} row(s) quarantined, inspect `quarantine_sales` for the reason.")

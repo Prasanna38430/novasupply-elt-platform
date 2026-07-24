@@ -1,4 +1,4 @@
-# 0004 — Adopt Elementary for data observability, on DuckDB from the start
+# 0004: Adopt Elementary for data observability, on DuckDB from the start
 
 Status: accepted
 Date: 2026-07-19
@@ -29,7 +29,7 @@ We get test-result history, model run times and schema-change tracking for free 
 here on, and the same package carries over to Snowflake unchanged.
 
 The cost is build time. Elementary contributes 30 models of its own, and they dominate a
-full run — `dbt_tests` and `dbt_columns` alone take roughly 100 seconds together, which
+full run, `dbt_tests` and `dbt_columns` alone take roughly 100 seconds together, which
 is more than the entire NovaSupply pipeline. For fast iteration use
 `dbt build --exclude elementary`; let the full build with Elementary run on a schedule
 and in CI, where the extra minute does not matter. If that stops being an acceptable

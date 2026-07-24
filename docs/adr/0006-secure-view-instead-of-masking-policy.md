@@ -1,4 +1,4 @@
-# 0006 — Use a secure view for column masking, not a masking policy
+# 0006: Use a secure view for column masking, not a masking policy
 
 Status: accepted
 Date: 2026-07-23
@@ -15,7 +15,7 @@ This is an account entitlement, not something configuration can work around.
 
 A second thing worth stating plainly: the generated data contains no personal data at
 all. Suppliers are companies. There is no RGPD obligation over this dataset. What the
-mechanism protects here is commercially sensitive information — what a supplier charges
+mechanism protects here is commercially sensitive information, what a supplier charges
 and how reliable they are is leverage in a negotiation, and analysts building reports have
 no need for it.
 
@@ -42,7 +42,7 @@ view definition.
 The limitation compared to a masking policy is real and worth being honest about. A
 masking policy attaches to the *column*, so it protects that column everywhere it is
 queried, including the base table. A secure view only protects whoever is pointed at the
-view — an analyst granted access to `dim_suppliers` directly would see everything. Access
+view, an analyst granted access to `dim_suppliers` directly would see everything. Access
 control has to keep the two consistent, whereas a masking policy is enforced centrally.
 
 If the account were upgraded to Enterprise, the migration would be to create the policies

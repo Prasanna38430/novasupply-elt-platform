@@ -1,7 +1,7 @@
 """Load the raw CSV files into the DuckDB warehouse as a RAW layer.
 
 Every source lands in the `raw` schema, one table per entity, with all columns kept as
-text — RAW is a faithful, untyped copy of what arrived. Type casting and cleaning happen
+text, RAW is a faithful, untyped copy of what arrived. Type casting and cleaning happen
 downstream in dbt staging. Two lineage columns are added: which file a row came from and
 when it was loaded.
 

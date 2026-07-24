@@ -1,11 +1,11 @@
-# 0003 — Materialise fct_sales incrementally, keep the other facts as full tables
+# 0003: Materialise fct_sales incrementally, keep the other facts as full tables
 
 Status: accepted
 Date: 2026-07-19
 
 ## Context
 
-Sales is the largest fact and grows by date — new days append, old days rarely change.
+Sales is the largest fact and grows by date, new days append, old days rarely change.
 Rebuilding the whole table on every run rescans all of history to add one day's worth of
 rows, which is exactly the pattern incremental models exist to avoid.
 

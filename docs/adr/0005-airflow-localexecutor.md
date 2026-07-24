@@ -1,4 +1,4 @@
-# 0005 — Run Airflow with LocalExecutor, and keep dbt in its own virtualenv
+# 0005: Run Airflow with LocalExecutor, and keep dbt in its own virtualenv
 
 Status: accepted
 Date: 2026-07-22
@@ -27,8 +27,8 @@ have the DAG call that interpreter by absolute path.
 
 The stack fits comfortably: measured at roughly 960 MB across all three containers, about
 half the available memory, with a full pipeline run taking around five minutes. The
-actual limit turned out to be CPU, not memory — the scheduler sits near 83% during dbt
-tasks — so throwing more RAM at it would not help.
+actual limit turned out to be CPU, not memory, the scheduler sits near 83% during dbt
+tasks, so throwing more RAM at it would not help.
 
 LocalExecutor runs tasks as subprocesses on the scheduler host, so it does not scale
 across machines. That is the right trade for a single-node project and a well-understood

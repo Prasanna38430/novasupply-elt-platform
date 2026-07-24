@@ -53,7 +53,7 @@ dbt build --profiles-dir .                     # DuckDB
 dbt build --profiles-dir . --target snowflake  # Snowflake
 ```
 
-Both produce identical results — verified by comparing row counts, revenue, late orders,
+Both produce identical results, verified by comparing row counts, revenue, late orders,
 open orders, stockout counts and the date dimension across the two, which match exactly.
 
 Where the SQL dialects genuinely differ, the difference is isolated rather than forked.
@@ -76,7 +76,7 @@ instead of aborting the model.
 buried inside a mart: purchase-order delays, the trailing demand rate, and stock status
 with days of cover.
 
-**MARTS** is the star schema — four dimensions and three facts, joined on natural keys
+**MARTS** is the star schema, four dimensions and three facts, joined on natural keys
 ([ADR 0002](adr/0002-natural-keys-in-dimensions.md)).
 
 **QUARANTINE** catches rows that fail validation so the pipeline degrades instead of

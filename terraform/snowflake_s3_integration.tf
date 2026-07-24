@@ -2,7 +2,7 @@
 #
 # Snowflake assumes an IAM role in this account instead. That normally creates a cycle:
 # the integration needs the role ARN, and the role's trust policy needs values that only
-# exist once the integration has been created. Two things break it — the role ARN is
+# exist once the integration has been created. Two things break it, the role ARN is
 # constructed from the account id rather than referencing the role resource, and the
 # external id is one we choose rather than one Snowflake generates.
 

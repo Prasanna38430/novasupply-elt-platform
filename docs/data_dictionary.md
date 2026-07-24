@@ -32,7 +32,7 @@ emitted per day into a `dt=` partition, mirroring how the same data will sit in 
 | country | string | Country of origin |
 | city | string | |
 | nominal_lead_time_days | int | Contracted days from order to delivery |
-| reliability_score | float | 0–1; higher means more often on time. Drives delivery delays |
+| reliability_score | float | 0-1; higher means more often on time. Drives delivery delays |
 | valid_from | date | When this version of the record took effect (feeds SCD2 later) |
 
 ### products (dimension)
@@ -65,7 +65,7 @@ emitted per day into a `dt=` partition, mirroring how the same data will sit in 
 | product_id | string | FK to products |
 | quantity | int | Units sold on the line |
 | unit_price_eur | float | Price at time of sale |
-| discount_pct | float | 0–1 |
+| discount_pct | float | 0-1 |
 | amount_eur | float | quantity × unit_price × (1 − discount) |
 
 ### inventory_snapshots (fact, partitioned by day)
@@ -113,7 +113,7 @@ Snowflake.
 | supplier_name | string | |
 | country, city | string | |
 | nominal_lead_time_days | int | Contracted order-to-delivery days |
-| reliability_score | float | 0–1; higher means more deliveries on time |
+| reliability_score | float | 0-1; higher means more deliveries on time |
 | reliability_tier | string | Banded score: High (≥0.95), Medium (≥0.85), Low |
 | valid_from | date | |
 
@@ -153,7 +153,7 @@ One row per day of loaded history, derived from the dates present in the invento
 
 ## fct_sales
 
-Grain: one row per sale line — store × SKU × day. Materialised incrementally on
+Grain: one row per sale line, store × SKU × day. Materialised incrementally on
 `sale_date` with `delete+insert` on `sale_id` (ADR 0003).
 
 | Column | Type | Notes |
@@ -178,7 +178,7 @@ Grain: one row per store × SKU × day.
 | in_transit_qty | int | Ordered but not yet delivered |
 | avg_daily_units | float | Trailing 28-day demand rate |
 | is_stockout | bool | on_hand_qty = 0 |
-| below_reorder_point | bool | Often true while a delivery is in flight — not itself a problem |
+| below_reorder_point | bool | Often true while a delivery is in flight, not itself a problem |
 | days_of_cover | float | on_hand ÷ demand rate; null when there is no recent demand |
 
 ## fct_purchase_orders
@@ -207,5 +207,5 @@ clean data.
 ## suppliers_snapshot
 
 dbt snapshot holding Type-2 supplier history. Adds `dbt_valid_from` and `dbt_valid_to`;
-the current version has a null `dbt_valid_to`. History starts when snapshotting starts —
+the current version has a null `dbt_valid_to`. History starts when snapshotting starts,
 dbt stamps the time it first saw a row, not the business `valid_from`.

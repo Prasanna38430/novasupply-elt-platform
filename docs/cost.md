@@ -7,7 +7,7 @@ Regenerate the Snowflake figures with `python scripts/snowflake_cost_report.py`.
 
 Everything up to the cloud phase runs on DuckDB and the local filesystem. No accounts, no
 bills, no trial clock. That was the point of [ADR 0001](adr/0001-local-first-duckdb.md):
-the long, iterative part of the work — writing and re-running dbt models — is exactly the
+the long, iterative part of the work (writing and re-running dbt models) is exactly the
 part that would burn a trial, and it does not need a cloud warehouse to be correct.
 
 ## Snowflake
@@ -29,7 +29,7 @@ consumed under 0.02% of it.
 ### Why it is that cheap
 
 **The warehouse is XSMALL.** One credit per hour while running. Nothing about 250k rows
-justifies more, and sizing up would not have made the build meaningfully faster — it would
+justifies more, and sizing up would not have made the build meaningfully faster, it would
 just bill more per second.
 
 **It auto-suspends after 60 seconds.** This is the single most effective cost control in
@@ -42,16 +42,16 @@ avoid resume latency between the steps of a dbt run.
 arrived.
 
 The busiest query types on the warehouse were `SELECT` (135 queries, 15.4s), `COPY` (6
-queries, 6.5s) and `CREATE_TABLE_AS_SELECT` (9 queries, 4.9s) — the shape you would expect
+queries, 6.5s) and `CREATE_TABLE_AS_SELECT` (9 queries, 4.9s), the shape you would expect
 from a load followed by a dbt build, with no long-running outliers.
 
 ## AWS
 
 | Item | Measured | Free tier |
 |---|---|---|
-| S3 objects in the raw zone | 269 | — |
+| S3 objects in the raw zone | 269 | - |
 | S3 storage | 11.4 MiB | 5 GB |
-| Region | eu-west-3 (Paris) | — |
+| Region | eu-west-3 (Paris) | - |
 
 Comfortably inside the free allowance, and the account is on the Free Plan, which cannot
 incur charges without an explicit upgrade. A zero-spend budget alert is configured as a

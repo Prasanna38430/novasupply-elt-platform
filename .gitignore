@@ -6,7 +6,7 @@ venv/
 *.egg-info/
 .pytest_cache/
 
-# Secrets and environment — the .env file holds real credentials, never commit it
+# Secrets and environment. The .env file holds real credentials, never commit it.
 .env
 *.pem
 *.key
