@@ -4,6 +4,11 @@
 
 A governed, cost-monitored ELT platform for retail and supply-chain analytics.
 
+<!-- SCREENSHOT (hero): replace this comment with
+     ![NovaSupply operations dashboard](docs/images/dashboard.png)
+     once the image exists. Capture: streamlit run dashboards/app.py -> http://localhost:8501,
+     the operations overview (KPI row + "SKUs at risk" table). See docs/images/README.md. -->
+
 ## The problem
 
 A mid-size French retailer keeps sales, inventory, supplier and logistics data in
@@ -21,8 +26,54 @@ transformation into a star schema; Airflow runs the sequence on a schedule; Terr
 provisions S3 and the Snowflake objects; GitHub Actions rebuilds everything on every push;
 Elementary records what each run did; a Streamlit app serves the answer.
 
-The diagram and the reasoning behind each layer are in
-[docs/architecture.md](docs/architecture.md).
+```mermaid
+flowchart LR
+    subgraph gen["Generation"]
+        G1[generate_dimensions.py]
+        G2[generate_facts.py]
+    end
+
+    subgraph raw["Raw zone"]
+        L[("data/raw/<br/>dt=YYYY-MM-DD")]
+        S3[("S3<br/>eu-west-3")]
+    end
+
+    subgraph wh["Warehouse"]
+        direction TB
+        R["RAW<br/>all text + lineage"]
+        ST["STAGING<br/>typed, cleaned"]
+        IN["INTERMEDIATE<br/>business logic"]
+        M["MARTS<br/>star schema"]
+        Q["QUARANTINE<br/>rejected rows"]
+        SN["SNAPSHOTS<br/>SCD2 history"]
+    end
+
+    D[Streamlit dashboard]
+
+    G1 --> L
+    G2 --> L
+    L -->|upload_to_s3.py| S3
+    L -->|load_raw.py| R
+    S3 -->|COPY INTO<br/>storage integration| R
+    R -->|dbt| ST
+    ST -->|dbt| IN
+    ST -->|dbt| Q
+    ST -->|dbt snapshot| SN
+    IN -->|dbt| M
+    M --> D
+```
+
+The reasoning behind each layer is in [docs/architecture.md](docs/architecture.md).
+
+<!-- SCREENSHOT: replace this whole comment with the two lines below (no comment markers)
+     once the image exists.
+
+     ![dbt lineage graph](docs/images/dbt-lineage.png)
+
+     *dbt builds this lineage graph automatically from the references between models.*
+
+     Capture: cd dbt, dbt docs generate --profiles-dir .,
+     dbt docs serve --profiles-dir . --port 8081 -> http://localhost:8081, open the lineage graph. -->
 
 **The same dbt models build on both warehouses**, and produce identical results, row
 counts, revenue, late and open orders, stockout counts and the date dimension all match
@@ -115,6 +166,11 @@ work from any directory.
 
 ## Orchestration
 
+<!-- SCREENSHOT: replace this comment with
+     ![Airflow DAG run](docs/images/airflow-dag.png)
+     once the image exists. Capture: docker compose up -d -> http://localhost:8080 (admin/admin),
+     open novasupply_pipeline, Grid or Graph view with all six tasks green. -->
+
 Airflow runs the whole pipeline on a nightly schedule. Bring it up with:
 
 ```bash
@@ -173,6 +229,10 @@ changes. See [ADR 0004](docs/adr/0004-elementary-for-observability.md).
 
 ## Continuous integration
 
+<!-- SCREENSHOT: replace this comment with
+     ![GitHub Actions passing](docs/images/ci.png)
+     once the image exists. Capture: repo -> Actions tab -> a green run -> both jobs succeeded. -->
+
 Every push and pull request to `main` rebuilds the platform from nothing on a clean
 runner: generate the data, load it, `dbt build`, and run all 119 tests. It takes about 70
 seconds. Because the generators are seeded, CI produces the same dataset every time, so a
@@ -183,6 +243,10 @@ Build artefacts (`dbt/target`, `dbt/logs`) are uploaded on every run, pass or fa
 red build can be diagnosed without reproducing it locally.
 
 ## Cost
+
+<!-- SCREENSHOT: replace this comment with
+     ![Snowflake cost report](docs/images/cost-report.png)
+     once the image exists. Capture: python scripts/snowflake_cost_report.py, screenshot the output. -->
 
 The entire Snowflake migration, loading 250k rows from S3 and building every model and
 test, consumed **0.078 credits, about EUR 0.21**. S3 holds 11.4 MiB against a 5 GB free
