@@ -23,8 +23,13 @@ and test on Snowflake:
 | Stage storage | 0.001 GB |
 | Full `dbt build` wall time | 33 seconds |
 
+The figures above are the first full migration. Credits accumulate per run, so after the
+repeated builds that went into finishing the project, cumulative `NOVASUPPLY_WH` usage is
+roughly 0.17 credits, about EUR 0.46. Regenerate the current number any time with
+`python scripts/snowflake_cost_report.py`.
+
 For scale: the trial provides roughly 400 credits. The entire cloud phase of this project
-consumed under 0.02% of it.
+consumed well under 0.1% of it.
 
 ### Why it is that cheap
 

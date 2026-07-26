@@ -4,10 +4,9 @@
 
 A governed, cost-monitored ELT platform for retail and supply-chain analytics.
 
-<!-- SCREENSHOT (hero): replace this comment with
-     ![NovaSupply operations dashboard](docs/images/dashboard.png)
-     once the image exists. Capture: streamlit run dashboards/app.py -> http://localhost:8501,
-     the operations overview (KPI row + "SKUs at risk" table). See docs/images/README.md. -->
+![NovaSupply operations dashboard](docs/images/dashboard.png)
+
+*The operations dashboard: which SKUs are about to stock out, and the supplier behind each.*
 
 ## The problem
 
@@ -65,15 +64,9 @@ flowchart LR
 
 The reasoning behind each layer is in [docs/architecture.md](docs/architecture.md).
 
-<!-- SCREENSHOT: replace this whole comment with the two lines below (no comment markers)
-     once the image exists.
+![dbt lineage graph](docs/images/dbt-lineage.png)
 
-     ![dbt lineage graph](docs/images/dbt-lineage.png)
-
-     *dbt builds this lineage graph automatically from the references between models.*
-
-     Capture: cd dbt, dbt docs generate --profiles-dir .,
-     dbt docs serve --profiles-dir . --port 8081 -> http://localhost:8081, open the lineage graph. -->
+*dbt builds this lineage graph automatically from the references between models (Elementary's own models excluded for clarity).*
 
 **The same dbt models build on both warehouses**, and produce identical results, row
 counts, revenue, late and open orders, stockout counts and the date dimension all match
@@ -166,10 +159,9 @@ work from any directory.
 
 ## Orchestration
 
-<!-- SCREENSHOT: replace this comment with
-     ![Airflow DAG run](docs/images/airflow-dag.png)
-     once the image exists. Capture: docker compose up -d -> http://localhost:8080 (admin/admin),
-     open novasupply_pipeline, Grid or Graph view with all six tasks green. -->
+![Airflow DAG run](docs/images/airflow-dag.png)
+
+*The nightly pipeline in Airflow, all six tasks green.*
 
 Airflow runs the whole pipeline on a nightly schedule. Bring it up with:
 
@@ -229,9 +221,9 @@ changes. See [ADR 0004](docs/adr/0004-elementary-for-observability.md).
 
 ## Continuous integration
 
-<!-- SCREENSHOT: replace this comment with
-     ![GitHub Actions passing](docs/images/ci.png)
-     once the image exists. Capture: repo -> Actions tab -> a green run -> both jobs succeeded. -->
+![GitHub Actions passing](docs/images/ci.png)
+
+*Every push rebuilds the platform from scratch and runs all 119 tests, plus a DAG-parse check.*
 
 Every push and pull request to `main` rebuilds the platform from nothing on a clean
 runner: generate the data, load it, `dbt build`, and run all 119 tests. It takes about 70
@@ -244,12 +236,13 @@ red build can be diagnosed without reproducing it locally.
 
 ## Cost
 
-<!-- SCREENSHOT: replace this comment with
-     ![Snowflake cost report](docs/images/cost-report.png)
-     once the image exists. Capture: python scripts/snowflake_cost_report.py, screenshot the output. -->
+![Snowflake cost report](docs/images/cost-report.png)
 
-The entire Snowflake migration, loading 250k rows from S3 and building every model and
-test, consumed **0.078 credits, about EUR 0.21**. S3 holds 11.4 MiB against a 5 GB free
+*Measured from Snowflake's own billing views: the cloud footprint runs for cents.*
+
+The first full Snowflake migration, loading 250k rows from S3 and building every model and
+test, consumed about **0.078 credits**. Repeated builds since have taken cumulative usage
+to roughly **0.17 credits, about EUR 0.46** total. S3 holds 11.4 MiB against a 5 GB free
 allowance.
 
 That is not an accident of small data. The warehouse is XSMALL, starts suspended, and
