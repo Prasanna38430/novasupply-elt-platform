@@ -25,6 +25,10 @@ transformation into a star schema; Airflow runs the sequence on a schedule; Terr
 provisions S3 and the Snowflake objects; GitHub Actions rebuilds everything on every push;
 Elementary records what each run did; a Streamlit app serves the answer.
 
+![NovaSupply architecture](docs/images/architecture.png)
+
+The detailed data flow, with every layer and the two ingestion paths:
+
 ```mermaid
 flowchart LR
     subgraph gen["Generation"]
