@@ -26,9 +26,7 @@ load_dotenv(REPO_ROOT / ".env", override=True)
 st.set_page_config(page_title="NovaSupply", page_icon="📦", layout="wide")
 
 
-# ---------------------------------------------------------------------------
 # Connections
-# ---------------------------------------------------------------------------
 
 @st.cache_resource(show_spinner=False)
 def duckdb_connection():
@@ -83,9 +81,7 @@ def query(sql: str, warehouse: str) -> pd.DataFrame:
     return duckdb_connection().sql(sql.replace("{marts}", "marts")).fetchdf()
 
 
-# ---------------------------------------------------------------------------
 # Sidebar
-# ---------------------------------------------------------------------------
 
 st.sidebar.title("NovaSupply")
 st.sidebar.caption("Retail supply-chain analytics")
@@ -116,9 +112,7 @@ store_choice = st.sidebar.multiselect(
 store_filter = "'" + "','".join(store_choice) + "'" if store_choice else "''"
 
 
-# ---------------------------------------------------------------------------
 # Headline numbers
-# ---------------------------------------------------------------------------
 
 st.title("Operations overview")
 
@@ -148,9 +142,7 @@ c4.metric("Revenue (90 days)", f"EUR {kpis['revenue'].iloc[0]:,.0f}")
 st.divider()
 
 
-# ---------------------------------------------------------------------------
 # The question the platform exists to answer
-# ---------------------------------------------------------------------------
 
 st.subheader("SKUs at risk of stocking out")
 st.caption(
@@ -192,9 +184,7 @@ else:
 st.divider()
 
 
-# ---------------------------------------------------------------------------
 # Supplier performance
-# ---------------------------------------------------------------------------
 
 left, right = st.columns(2)
 
@@ -236,9 +226,7 @@ with right:
 st.divider()
 
 
-# ---------------------------------------------------------------------------
 # Sales trend
-# ---------------------------------------------------------------------------
 
 st.subheader("Revenue by day")
 sales = query(f"""
@@ -253,9 +241,7 @@ st.line_chart(sales.set_index("sale_date")["revenue_eur"], height=260)
 st.divider()
 
 
-# ---------------------------------------------------------------------------
 # Data quality
-# ---------------------------------------------------------------------------
 
 st.subheader("Data quality")
 st.caption(

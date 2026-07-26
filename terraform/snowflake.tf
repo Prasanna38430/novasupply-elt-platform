@@ -34,10 +34,8 @@ resource "snowflake_warehouse" "novasupply" {
   comment             = "NovaSupply compute. Suspends after ${var.warehouse_auto_suspend_seconds}s idle."
 }
 
-# ---------------------------------------------------------------------------
 # Roles. Three of them, split by what each job actually needs to do, so that no
 # day-to-day work runs as ACCOUNTADMIN.
-# ---------------------------------------------------------------------------
 
 resource "snowflake_account_role" "loader" {
   name    = "NOVASUPPLY_LOADER"
