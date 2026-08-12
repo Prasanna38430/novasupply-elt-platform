@@ -87,6 +87,7 @@ exactly across DuckDB and Snowflake. Switching is a profile change, not a fork.
 - CI: GitHub Actions
 - Data quality: dbt tests + Elementary
 - Serving: Streamlit
+- AI: local Ollama for natural-language-to-SQL over the marts
 
 ## Why DuckDB first
 
@@ -235,6 +236,11 @@ seconds. Because the generators are seeded, CI produces the same dataset every t
 failing test means the code changed rather than the data getting unlucky. A second job
 parses the Airflow DAG, which otherwise only breaks when the scheduler tries to run it.
 
+A `pytest` step covers the NL-to-SQL helper — chiefly the read-only gate that decides
+whether generated SQL is allowed near the warehouse, which is the one place in this project
+where a bug is a security problem rather than a wrong number. It stubs the model out, so it
+needs no Ollama and adds under a second to the build.
+
 Build artefacts (`dbt/target`, `dbt/logs`) are uploaded on every run, pass or fail, so a
 red build can be diagnosed without reproducing it locally.
 
@@ -264,6 +270,37 @@ streamlit run dashboards/app.py
 Shows SKUs at risk of stocking out with their supplier, supplier lateness rankings, the
 stockout rate by supplier reliability tier, a revenue trend, and a data-quality panel. A
 sidebar toggle switches the whole dashboard between DuckDB and Snowflake.
+
+### Ask your data
+
+A panel at the bottom takes a plain-language question, drafts SQL with a local model,
+streams it into view, and runs it against whichever warehouse is selected:
+
+> *Which category has the most stockouts right now?*
+> *Top 10 products by revenue in Hauts-de-France*
+> *Which suppliers deliver late most often?*
+
+The SQL is always shown before the results, so it can be checked rather than trusted. If
+the warehouse rejects it, the error goes back to the model for one repair attempt and the
+panel says so when the answer came from the second try.
+
+It needs [Ollama](https://ollama.com) installed, with the model pulled once:
+
+```bash
+ollama pull qwen2.5-coder:3b
+```
+
+Ollama runs in the background from login, so there is no server to start by hand. Without
+it the panel explains what to install rather than breaking the rest of the dashboard. No
+API key, no cloud calls, no cost.
+
+Accuracy comes from the prompt rather than the model size: real DDL read out of
+`information_schema`, a glossary mapping business words onto columns, worked examples, and
+the repair loop. On five questions held out of those examples it produced correct SQL on
+the first attempt, including the two grain traps in this warehouse (the daily inventory
+snapshot, and null delay fields on open orders). Expect 15-25 seconds per question on a
+CPU-only machine. [ADR 0007](docs/adr/0007-local-llm-for-nl-to-sql.md) covers why this
+skips RAG, why a small code-tuned model, and where it still falls short.
 
 ## Limitations and trade-offs
 
