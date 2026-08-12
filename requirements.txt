@@ -13,3 +13,6 @@ dbt-snowflake>=1.8
 # Serving.
 streamlit>=1.40
 requests>=2.31  # NL-to-SQL panel: talks to a local Ollama server, no other client needed.
+
+# Tests.
+pytest>=8.0

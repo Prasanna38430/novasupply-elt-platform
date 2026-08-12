@@ -26,6 +26,11 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      # The read-only gate on generated SQL is the part worth failing a build over. It
+      # stubs the model out, so it needs no Ollama and runs in under a second.
+      - name: Python tests
+        run: pytest tests/ -q
+
       # The generators are seeded, so CI builds the same dataset every time and a test
       # failure means the code changed, not that the data got lucky.
       - name: Generate raw data
