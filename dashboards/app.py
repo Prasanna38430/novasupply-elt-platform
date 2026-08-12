@@ -20,6 +20,8 @@ import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
 
+import nl_query
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(REPO_ROOT / ".env", override=True)
 
@@ -264,3 +266,54 @@ if quarantined == 0:
     st.success("No rows quarantined in the latest load.")
 elif quarantined:
     st.warning(f"{quarantined} row(s) quarantined, inspect `quarantine_sales` for the reason.")
+
+st.divider()
+
+
+# Ask your data (AI)
+
+st.subheader("Ask your data (AI)")
+st.caption(
+    "Natural-language question -> SQL, drafted locally by Ollama and run against the "
+    "warehouse selected above. The generated SQL is always shown, so you can check it "
+    "before trusting the answer. Nothing here calls a cloud API."
+)
+
+EXAMPLE_QUESTIONS = [
+    "Which category has the most stockouts right now?",
+    "Total revenue by store, highest first",
+    "Which suppliers deliver late most often?",
+    "Top 10 products by revenue in Hauts-de-France",
+    "Average days of cover by category, lowest first",
+]
+
+question = st.text_input(
+    "Ask a question about sales, inventory or suppliers",
+    placeholder=EXAMPLE_QUESTIONS[0],
+)
+st.caption("Try: " + "  •  ".join(f"*{q}*" for q in EXAMPLE_QUESTIONS[:3]))
+
+if question:
+    sql_box = st.empty()
+    try:
+        with st.status("Thinking...", expanded=True) as status_box:
+            # The model streams into the code block so the query visibly takes shape;
+            # on a CPU-only machine the alternative is fifteen silent seconds.
+            sql, rows, repaired = nl_query.answer(
+                question,
+                runner=lambda s: query(s, warehouse),
+                on_token=lambda partial: sql_box.code(partial, language="sql"),
+                on_status=lambda message: status_box.update(label=message),
+            )
+            status_box.update(label="Done", state="complete", expanded=False)
+        sql_box.code(sql, language="sql")
+        if repaired:
+            st.caption(
+                "The first attempt was rejected by the warehouse; this is the model's "
+                "corrected second attempt."
+            )
+        st.dataframe(rows, width='stretch', hide_index=True)
+    except nl_query.OllamaUnavailable as exc:
+        st.info(str(exc))
+    except Exception as exc:  # noqa: BLE001 - surface the model's mistake, not a stack trace
+        st.error(f"That didn't run: {exc}")
