@@ -39,6 +39,12 @@ N_SUPPLIERS = 20
 N_PRODUCTS = 200
 N_STORES = 8
 
+# Contract corpus: one master contract per supplier, plus amendments for a few of them.
+# The amendments are the point rather than decoration, they supersede a clause in the
+# original, so answering "what lead time applies now" needs the right document and not
+# merely a relevant one.
+N_CONTRACT_AMENDMENTS = 5
+
 # History window for the daily facts, inclusive. Roughly 90 days ending "yesterday".
 HISTORY_DAYS = 90
 HISTORY_END = date(2026, 7, 18)
