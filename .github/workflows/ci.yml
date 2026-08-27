@@ -32,11 +32,13 @@ jobs:
         run: pytest tests/ -q
 
       # The generators are seeded, so CI builds the same dataset every time and a test
-      # failure means the code changed, not that the data got lucky.
+      # failure means the code changed, not that the data got lucky. The contract
+      # generator is plain Python with no model behind it, so it belongs here too.
       - name: Generate raw data
         run: |
           python ingestion/generate_dimensions.py
           python ingestion/generate_facts.py
+          python ingestion/generate_supplier_documents.py
 
       - name: Load into DuckDB
         run: python ingestion/load_raw.py

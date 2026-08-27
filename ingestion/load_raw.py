@@ -23,6 +23,10 @@ SOURCES = [
     ("sales", "sales/dt=*/sales.csv"),
     ("inventory_snapshots", "inventory/dt=*/inventory.csv"),
     ("purchase_orders", "purchase_orders/dt=*/purchase_orders.csv"),
+    # The contract documents themselves are prose and are chunked separately by
+    # embed_documents.py; what lands here is the catalogue describing them, which is what
+    # downstream models need to tell an amendment from the contract it supersedes.
+    ("contract_catalogue", "contracts/catalogue.csv"),
 ]
 
 
