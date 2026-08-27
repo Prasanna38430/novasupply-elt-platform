@@ -260,7 +260,7 @@ except Exception:  # noqa: BLE001 - quarantine table may not exist on a fresh bu
 
 d1, d2 = st.columns(2)
 d1.metric("Quarantined sale rows", quarantined if quarantined is not None else "n/a")
-d2.metric("dbt tests in the build", 119)
+d2.metric("dbt tests in the build", 133)
 
 if quarantined == 0:
     st.success("No rows quarantined in the latest load.")

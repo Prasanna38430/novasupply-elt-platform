@@ -209,7 +209,7 @@ arguable.
 
 Three layers, because they catch different things.
 
-**Tests** (119 of them) assert the contracts: dimension keys are unique, every fact
+**Tests** (133 of them) assert the contracts: dimension keys are unique, every fact
 foreign key resolves, quantities are positive, `reliability_score` sits between 0 and 1,
 and the fact grains hold. Alongside the generic tests there are singular tests for
 business rules that structural checks miss, revenue reconciling to its own components,
@@ -228,10 +228,10 @@ changes. See [ADR 0004](docs/adr/0004-elementary-for-observability.md).
 
 ![GitHub Actions passing](docs/images/ci.png)
 
-*Every push rebuilds the platform from scratch and runs all 119 tests, plus a DAG-parse check.*
+*Every push rebuilds the platform from scratch and runs all 133 tests, plus a DAG-parse check.*
 
 Every push and pull request to `main` rebuilds the platform from nothing on a clean
-runner: generate the data, load it, `dbt build`, and run all 119 tests. It takes about 70
+runner: generate the data, load it, `dbt build`, and run all 133 tests. It takes about 70
 seconds. Because the generators are seeded, CI produces the same dataset every time, so a
 failing test means the code changed rather than the data getting unlucky. A second job
 parses the Airflow DAG, which otherwise only breaks when the scheduler tries to run it.
