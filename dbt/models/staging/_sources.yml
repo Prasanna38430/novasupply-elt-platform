@@ -13,3 +13,8 @@ sources:
       - name: sales
       - name: inventory_snapshots
       - name: purchase_orders
+      - name: contract_catalogue
+        description: >
+          One row per supplier document, describing what it is and what it replaces. The
+          documents themselves are prose and are indexed separately by
+          ingestion/embed_documents.py; this is the structured part of them.
