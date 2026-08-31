@@ -64,6 +64,46 @@ models:
           - dbt_utils.accepted_range:
               arguments: {min_value: 0, max_value: 120}
 
+  - name: fct_contract_compliance
+    description: >
+      One row per delivered purchase order, judged against the contract terms in force on
+      the day it was placed. Carries both notions of lateness: against the date promised
+      on the order, and against the framework contract.
+    columns:
+      - name: po_id
+        description: >
+          Primary key. Unique here as well as in fct_purchase_orders, which is the check
+          that the term-history join matched exactly one period per order rather than
+          fanning out across overlapping ones.
+        data_tests: [unique, not_null]
+      - name: supplier_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('dim_suppliers'), field: supplier_id}
+      - name: order_value_eur
+        description: Ordered quantity at unit cost, the base the penalty is charged on.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments: {min_value: 0}
+      - name: days_over_contract
+        description: Days beyond the contracted window. Zero when delivered in time.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments: {min_value: 0}
+      - name: is_contract_breach
+        data_tests: [not_null]
+      - name: penalty_eur
+        description: >
+          Accrues per day over the contracted window, capped at the contract's ceiling.
+          Zero on an order that met its terms.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments: {min_value: 0}
+
   - name: dim_products
     description: Product dimension with derived margin attributes.
     columns:
