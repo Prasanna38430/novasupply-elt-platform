@@ -15,7 +15,13 @@ data/raw/
 ├── stores/stores.csv                       current-state dimension
 ├── sales/dt=YYYY-MM-DD/sales.csv           daily fact, partitioned by date
 ├── inventory/dt=YYYY-MM-DD/inventory.csv   daily fact, partitioned by date
-└── purchase_orders/dt=YYYY-MM-DD/purchase_orders.csv   daily fact, partitioned by date
+├── purchase_orders/dt=YYYY-MM-DD/purchase_orders.csv   daily fact, partitioned by date
+└── contracts/                              unstructured: French contract prose
+    ├── CTR-2026-NNNN.txt                   master framework contract, one per supplier
+    ├── CTR-2026-NNNN-A1.txt                amendment, supersedes clauses of the above
+    ├── catalogue.csv                       what each document is, and what it replaces
+    └── _ground_truth.csv                   answer key for scoring extraction; the
+                                            extraction path never reads it
 ```
 
 Dimensions are small and land as a single current-state file. The three facts are
@@ -198,6 +204,58 @@ Grain: one row per replenishment order.
 | delay_days | int | promised → actual. Positive is late; null while open |
 | is_open | bool | Not yet delivered |
 | is_late | bool | Arrived after promised. Null while open |
+
+## dim_supplier_contracts
+
+The commercial terms in force per supplier today, read out of the contract prose by a
+model rather than entered by hand, so treat them as extracted rather than authoritative.
+One row per supplier. Where an amendment exists its delivery and penalty clauses win and
+every other term still comes from the master contract, so no single document holds this
+row.
+
+| Column | Type | Notes |
+|---|---|---|
+| supplier_id | string | Primary key |
+| contract_id | string | The master contract the terms start from |
+| amendment_id | string | The amendment, when there is one; else null |
+| is_amended | bool | Whether an amendment restated the delivery or penalty clause |
+| terms_effective_from | date | When the terms below started applying |
+| contracted_lead_time_days | int | Delivery window the supplier committed to |
+| penalty_rate_pct_per_day | double | Late penalty, percent of order value per day |
+| penalty_cap_pct | int | Ceiling on cumulative penalty, percent of order value |
+| min_order_qty | int | Minimum order quantity per reference |
+| payment_terms_days | int | Days to pay an invoice |
+| quality_tolerance_pct | double | Tolerated non-conformity rate |
+| notice_period_days | int | Termination notice |
+
+## fct_contract_compliance
+
+One row per **delivered** purchase order, judged against the contract in force on the day
+it was placed. Open orders are excluded, having missed nothing yet.
+
+The two lateness flags answer different questions and routinely disagree: an order can hit
+the date promised on it while still exceeding what the framework contract allows.
+
+| Column | Type | Notes |
+|---|---|---|
+| po_id | string | Primary key. Unique here as well as in `fct_purchase_orders`, which is what proves the term-period join matched exactly one period |
+| order_date | date | Determines which contract terms apply |
+| supplier_id | string | FK to `dim_suppliers` |
+| product_id | string | FK to `dim_products` |
+| store_id | string | FK to `dim_stores` |
+| governing_document_id | string | The contract or amendment that governed this order |
+| governed_by_amendment | bool | Whether that document was an amendment |
+| ordered_qty | int | |
+| order_value_eur | double | Ordered quantity at unit cost; the base the penalty is charged on |
+| contracted_lead_time_days | int | From the terms in force at `order_date` |
+| actual_lead_time_days | int | order → actual delivery |
+| days_over_contract | int | Days beyond the contracted window; zero when in time |
+| is_contract_breach | bool | Exceeded the framework contract. The commercial question |
+| is_late_vs_promise | bool | Missed the date promised on this order. The operational one |
+| days_late_vs_promise | int | Days past the promised date |
+| penalty_rate_pct_per_day | double | From the terms in force |
+| penalty_cap_pct | int | From the terms in force |
+| penalty_eur | double | Accrues per day over the window, capped at the contract's ceiling |
 
 ## quarantine_sales
 
