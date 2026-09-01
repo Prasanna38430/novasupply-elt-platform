@@ -343,6 +343,10 @@ sidebar toggle switches the whole dashboard between DuckDB and Snowflake.
 
 ### Ask your data
 
+![Natural-language question turned into SQL](docs/images/ask-your-data.png)
+
+*The generated SQL is shown above the results, so it can be checked rather than trusted.*
+
 A panel at the bottom takes a plain-language question, drafts SQL with a local model,
 streams it into view, and runs it against whichever warehouse is selected:
 
@@ -373,6 +377,11 @@ CPU-only machine. [ADR 0007](docs/adr/0007-local-llm-for-nl-to-sql.md) covers wh
 skips RAG, why a small code-tuned model, and where it still falls short.
 
 ### Ask about the contracts
+
+![Contract question answered from the amendment, with its clauses](docs/images/ask-contracts.png)
+
+*Seven days, citing the amendment, where the contract it superseded says ten. The clauses
+the answer came from are listed underneath it.*
 
 A second panel answers questions about the contract prose instead of the numbers:
 
