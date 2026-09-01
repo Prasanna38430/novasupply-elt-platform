@@ -188,9 +188,25 @@ def main() -> None:
         """
     )
     total = con.execute("select count(*) from search.contract_chunks").fetchone()[0]
+
+    # A keyword index alongside the vectors, because the two fail in different places.
+    # Similarity treats "délai", "durée" and "préavis" as one idea of elapsed time and
+    # cannot keep near-identical boilerplate apart; BM25 matches the actual words, and a
+    # French stemmer means a question about "délais" still finds a clause saying "délai".
+    # Building it here rather than at query time is what lets the dashboard open the
+    # warehouse read-only.
+    con.execute("install fts")
+    con.execute("load fts")
+    con.execute("""
+        pragma create_fts_index(
+            'search.contract_chunks', 'chunk_id', 'chunk_text',
+            stemmer = 'french', stopwords = 'none', overwrite = 1
+        )
+    """)
     con.close()
 
     print(f"wrote search.contract_chunks  {total:>4} rows, {dimensions}-dim vectors")
+    print("built the BM25 index (french stemmer) alongside them")
     print(f"warehouse: {DUCKDB_PATH}")
 
 
