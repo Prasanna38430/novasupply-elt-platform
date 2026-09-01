@@ -47,6 +47,15 @@ with DAG(
         bash_command=f"cd {PROJECT_DIR} && {PYTHON} ingestion/generate_facts.py",
     )
 
+    # Reads the supplier dimension, so it follows the dimension generator. The two steps
+    # that come after it in the contract pipeline, embedding and term extraction, are not
+    # here: both need a local model, and there is no room for 1.9GB of weights in a 2GB
+    # container budget. Their output is committed instead, as a dbt seed. See ADR 0009.
+    generate_supplier_documents = BashOperator(
+        task_id="generate_supplier_documents",
+        bash_command=f"cd {PROJECT_DIR} && {PYTHON} ingestion/generate_supplier_documents.py",
+    )
+
     load_raw = BashOperator(
         task_id="load_raw",
         bash_command=f"cd {PROJECT_DIR} && {PYTHON} ingestion/load_raw.py",
@@ -71,6 +80,7 @@ with DAG(
     (
         generate_dimensions
         >> generate_facts
+        >> generate_supplier_documents
         >> load_raw
         >> dbt_run
         >> dbt_snapshot
