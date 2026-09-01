@@ -19,6 +19,8 @@ re-running it replaces that day's rows rather than duplicating them.
 `fct_inventory` and `fct_purchase_orders` stay full-refresh tables for now. At the
 current volume the rebuild is sub-second, and inventory in particular is a daily
 snapshot where past rows are stable but the modelling is simpler kept whole.
+`fct_contract_compliance`, added later, follows the same rule for the same reason: it is
+derived from the delivered orders, so it is bounded by them.
 
 ## Consequences
 
@@ -26,4 +28,5 @@ Daily runs get cheap as history grows. The cost is the usual incremental caveats
 change to the model's logic needs a `--full-refresh` to rewrite old rows, and the
 `>= max` boundary assumes days load in order. Both are acceptable here and called out so
 the behaviour isn't surprising. Revisit the other facts if they grow enough to feel the
-full rebuild.
+full rebuild; [docs/scaling.md](../scaling.md) works out roughly where that is, and why
+incrementality alone would not be the whole answer for a snapshot grain.

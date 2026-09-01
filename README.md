@@ -230,7 +230,8 @@ dbt docs serve --profiles-dir .
 ```
 
 Written docs live in `docs/`: [architecture](docs/architecture.md),
-[data dictionary](docs/data_dictionary.md), [cost](docs/cost.md), and nine
+[data dictionary](docs/data_dictionary.md), [cost](docs/cost.md),
+[scaling](docs/scaling.md), and nine
 [architecture decision records](docs/adr/) covering the choices that were genuinely
 arguable.
 
@@ -424,6 +425,13 @@ arithmetic is right and the temporal join is right, but it is not a finding: a r
 supplier renegotiating a tighter window would usually try to meet it. It does happen to
 illustrate a genuine procurement pattern, terms agreed that the supplier cannot hold, but
 it was not designed to.
+
+**It runs at demo volume, and the limits are worked out rather than waved at.**
+`fct_inventory` is a daily snapshot at store x SKU x day: 144,000 rows here, but roughly
+1.6 billion a year for a 150-store chain carrying 30,000 SKUs. Contract extraction runs at
+about 48 seconds a document, which is twenty minutes for this corpus and 67 hours for five
+thousand agreements. [docs/scaling.md](docs/scaling.md) sets out what gives first, in what
+order, and what each fix would actually be.
 
 **Extraction accuracy is measured on templated documents.** 155 of 155 fields is a real
 score against a held-out answer key, not an impression, but the corpus is generated from a
