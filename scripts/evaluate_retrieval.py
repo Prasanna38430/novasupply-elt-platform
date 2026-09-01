@@ -28,7 +28,9 @@ import duckdb
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "ingestion"))
+sys.path.insert(0, str(REPO_ROOT / "dashboards"))
 
+import contract_qa  # noqa: E402
 from config import DUCKDB_PATH  # noqa: E402
 from embed_documents import embed  # noqa: E402
 
@@ -46,6 +48,9 @@ STRATEGIES = {
     "semantic only": "",
     "+ supersession filter": "where superseded_by is null",
     "+ supplier filter": "where superseded_by is null and supplier_id = '{supplier_id}'",
+    # The last one is not a where clause but the whole retrieval in dashboards, BM25 fused
+    # with the vectors on top of both filters. Handled separately below.
+    "+ BM25 (hybrid)": None,
 }
 
 
@@ -108,8 +113,18 @@ def main() -> None:
         hits = amended_hits = 0
         misses: dict[str, int] = {}
         for item, vector in zip(golden, vectors):
-            clause = where.format(supplier_id=item["supplier_id"])
-            if top_chunk(con, vector, clause) == item["expected_chunk_id"]:
+            if where is None:
+                # The real thing: same filters, plus keyword ranking fused in.
+                hits_df = contract_qa.search(
+                    con, item["question"], supplier_id=item["supplier_id"], top_k=1,
+                    embed_fn=lambda _texts, v=vector: [v],
+                )
+                found = hits_df["chunk_id"].iloc[0] if not hits_df.empty else None
+            else:
+                clause = where.format(supplier_id=item["supplier_id"])
+                found = top_chunk(con, vector, clause)
+
+            if found == item["expected_chunk_id"]:
                 hits += 1
                 amended_hits += item["amended"]
             else:
