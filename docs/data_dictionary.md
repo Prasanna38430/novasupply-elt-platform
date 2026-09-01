@@ -112,6 +112,11 @@ natural keys, all built by dbt. Everything except the two contract models below 
 verified to be identical on DuckDB and Snowflake during the trial; the contract models came
 afterwards and have only been built on DuckDB.
 
+> The dbt schema files under `dbt/models/` are the source of truth for these columns: they
+> carry the descriptions *and* the tests that enforce them, and `dbt docs generate` renders
+> them with the lineage graph. This section repeats them so the marts can be read on GitHub
+> without running anything. If the two ever disagree, the schema files win.
+
 ## dim_suppliers
 
 | Column | Type | Notes |

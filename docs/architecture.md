@@ -2,52 +2,14 @@
 
 ## The flow
 
-```mermaid
-flowchart LR
-    subgraph gen["Generation"]
-        G1[generate_dimensions.py]
-        G2[generate_facts.py]
-        G3[generate_supplier_documents.py]
-    end
+The pipeline runs in one direction: generators write files, a loader lands them untyped,
+and dbt does everything after that. [The README](../README.md#architecture) has the diagram;
+this file is the reasoning behind it, so the two do not drift apart.
 
-    subgraph raw["Raw zone"]
-        L[("data/raw/<br/>dt=YYYY-MM-DD")]
-        C[("data/raw/contracts/<br/>French prose")]
-        S3[("S3<br/>eu-west-3")]
-    end
-
-    subgraph wh["Warehouse"]
-        direction TB
-        R["RAW<br/>all text + lineage"]
-        ST["STAGING<br/>typed, cleaned"]
-        IN["INTERMEDIATE<br/>business logic"]
-        M["MARTS<br/>star schema"]
-        Q["QUARANTINE<br/>rejected rows"]
-        SN["SNAPSHOTS<br/>SCD2 history"]
-        SE["SEARCH<br/>chunks, vectors, BM25"]
-    end
-
-    SD[("dbt seed<br/>contract_terms.csv")]
-    D[Streamlit dashboard]
-
-    G1 --> L
-    G2 --> L
-    G3 --> C
-    L -->|upload_to_s3.py| S3
-    L -->|load_raw.py| R
-    C -->|load_raw.py<br/>catalogue| R
-    S3 -->|COPY INTO<br/>storage integration| R
-    C -->|embed_documents.py<br/>local model| SE
-    C -->|extract_contract_terms.py<br/>local model| SD
-    SD -->|dbt seed| ST
-    R -->|dbt| ST
-    ST -->|dbt| IN
-    ST -->|dbt| Q
-    ST -->|dbt snapshot| SN
-    IN -->|dbt| M
-    M --> D
-    SE --> D
-```
+Two paths enter the warehouse. The structured one is the ordinary ELT route: seeded
+generators write date-partitioned CSVs, `load_raw.py` copies them into RAW as text, and dbt
+takes it through STAGING, INTERMEDIATE and MARTS. The unstructured one carries the supplier
+contracts and is described further down.
 
 Airflow runs the whole sequence on a schedule. Terraform provisions S3 and the Snowflake
 objects. GitHub Actions rebuilds everything from scratch on every push. Elementary records
