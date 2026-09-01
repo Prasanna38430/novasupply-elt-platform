@@ -22,21 +22,12 @@ Nothing leaves the machine: Ollama is a local HTTP server, not a cloud API.
 """
 from __future__ import annotations
 
-import json
 import re
 from typing import Callable
 
-import requests
-
-OLLAMA_URL = "http://localhost:11434/api/generate"
-
-# A code-tuned 3B model rather than a general 8B chat model: better at drafting SQL for its
-# size, and it fits in memory on an 8GB dev machine, which llama3.1:8b does not (ADR 0007).
-MODEL = "qwen2.5-coder:3b"
-
-# Keep the model resident between questions. The default 5 minutes expires mid-demo and
-# costs a ~9 second reload on the next question; generation is slow enough already.
-KEEP_ALIVE = "30m"
+import ollama
+# Re-exported: the dashboard catches these as nl_query.OllamaUnavailable.
+from ollama import ModelError, OllamaUnavailable  # noqa: F401
 
 # Generation runs at single-digit tokens/sec on CPU, so a runaway answer is a hang. No
 # reasonable query against seven tables needs more than this.
@@ -46,7 +37,6 @@ MAX_OUTPUT_TOKENS = 400
 # "show me everything" from pulling half a million sales rows into the browser.
 MAX_ROWS = 500
 
-REQUEST_TIMEOUT = 300
 
 # Real DDL, generated from information_schema against the built warehouse rather than
 # written from memory, so it cannot drift into describing columns that do not exist.
@@ -254,14 +244,6 @@ _SELECT_RE = re.compile(r"(?i)^(select|with)\b")
 _TRAILING_LIMIT_RE = re.compile(r"(?is)\blimit\s+\d+\s*$")
 
 
-class OllamaUnavailable(RuntimeError):
-    """The local Ollama server isn't reachable."""
-
-
-class ModelError(RuntimeError):
-    """Ollama reached, but it failed to produce a completion."""
-
-
 class UnsafeGeneratedSQL(ValueError):
     """The model drafted something other than a read-only SELECT."""
 
@@ -297,48 +279,15 @@ def _clean(raw: str) -> str:
 
 
 def _complete(prompt: str, on_token: Callable[[str], None] | None = None) -> str:
-    """Stream one completion from Ollama.
+    """Stream one completion, stripping any markdown fence as it arrives.
 
-    Streamed rather than awaited in one lump purely for how it feels: generation runs at
-    single-digit tokens per second on CPU, so a blocking call is fifteen seconds of blank
-    screen, while streaming shows the query taking shape immediately. `on_token` receives
-    the text accumulated so far, which is what a Streamlit placeholder wants to render.
+    Kept as a seam of its own rather than calling the client inline: it is the single
+    point where a generated statement enters this module, which is what makes the repair
+    loop and the read-only gate straightforward to test without a model behind them.
     """
-    payload = {
-        "model": MODEL,
-        "prompt": prompt,
-        "stream": True,
-        "keep_alive": KEEP_ALIVE,
-        "options": {"temperature": 0, "num_predict": MAX_OUTPUT_TOKENS},
-    }
-    parts: list[str] = []
-    try:
-        with requests.post(OLLAMA_URL, json=payload, timeout=REQUEST_TIMEOUT, stream=True) as response:
-            response.raise_for_status()
-            for line in response.iter_lines():
-                if not line:
-                    continue
-                chunk = json.loads(line)
-                if chunk.get("error"):
-                    raise ModelError(chunk["error"])
-                token = chunk.get("response", "")
-                if token:
-                    parts.append(token)
-                    if on_token is not None:
-                        on_token(_clean("".join(parts)))
-                if chunk.get("done"):
-                    break
-    except requests.exceptions.ConnectionError as exc:
-        raise OllamaUnavailable(
-            f"Can't reach Ollama at {OLLAMA_URL}. Install it from ollama.com, run "
-            f"`ollama pull {MODEL}` once, and make sure Ollama is running, then retry."
-        ) from exc
-    except requests.exceptions.Timeout as exc:
-        raise ModelError(
-            f"Ollama did not answer within {REQUEST_TIMEOUT}s. On a CPU-only machine the "
-            f"first question after a pause also pays for loading the model."
-        ) from exc
-    return _clean("".join(parts))
+    return ollama.stream_completion(
+        prompt, on_token=on_token, max_tokens=MAX_OUTPUT_TOKENS, clean=_clean
+    )
 
 
 def _drafted(sql: str) -> str:
