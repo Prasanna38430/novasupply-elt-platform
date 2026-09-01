@@ -63,8 +63,11 @@ dbt build --profiles-dir .                     # DuckDB
 dbt build --profiles-dir . --target snowflake  # Snowflake
 ```
 
-Both produce identical results, verified by comparing row counts, revenue, late orders,
-open orders, stockout counts and the date dimension across the two, which match exactly.
+Both produced identical results when that was last verified, during the Snowflake trial,
+by comparing row counts, revenue, late orders, open orders, stockout counts and the date
+dimension across the two. The contract models arrived after the trial lapsed and have only
+ever been built on DuckDB; their SQL is written to the same portability rules as everything
+else, but that is an expectation rather than a measurement.
 
 Where the SQL dialects genuinely differ, the difference is isolated rather than forked.
 `dbt.datediff` and `dbt.current_timestamp` come from dbt's cross-database macros; ISO week

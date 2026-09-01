@@ -86,9 +86,17 @@ The reasoning behind each layer is in [docs/architecture.md](docs/architecture.m
 
 *dbt builds this lineage graph automatically from the references between models (Elementary's own models excluded for clarity).*
 
-**The same dbt models build on both warehouses**, and produce identical results, row
-counts, revenue, late and open orders, stockout counts and the date dimension all match
-exactly across DuckDB and Snowflake. Switching is a profile change, not a fork.
+**The same dbt models build on both warehouses.** Row counts, revenue, late and open
+orders, stockout counts and the date dimension all matched exactly across DuckDB and
+Snowflake when that was last checked, during the trial. Switching is a profile change, not
+a fork.
+
+That check covers the models that existed at the time. The contract models
+(`stg_contract_catalogue`, `stg_contract_terms`, `int_contracts__terms_history`,
+`fct_contract_compliance`) and the seed they read came later and have only ever been built
+on DuckDB. Their SQL avoids DuckDB-specific functions and the cross-engine differences that
+do exist go through the macros in `dbt/macros/`, so it should port unchanged, but should
+is not the same as checked, and the trial has since lapsed.
 
 ## Stack
 
@@ -318,7 +326,8 @@ red build can be diagnosed without reproducing it locally.
 
 ![Snowflake cost report](docs/images/cost-report.png)
 
-*Measured from Snowflake's own billing views: the cloud footprint runs for cents.*
+*Measured from Snowflake's own billing views while the trial was live: the cloud footprint
+ran for cents.*
 
 The first full Snowflake migration, loading 250k rows from S3 and building every model and
 test, consumed about **0.078 credits**. Repeated builds since have taken cumulative usage
@@ -339,7 +348,9 @@ streamlit run dashboards/app.py
 
 Shows SKUs at risk of stocking out with their supplier, supplier lateness rankings, the
 stockout rate by supplier reliability tier, a revenue trend, and a data-quality panel. A
-sidebar toggle switches the whole dashboard between DuckDB and Snowflake.
+sidebar toggle switches the whole dashboard between DuckDB and Snowflake, though with the
+trial lapsed the Snowflake side now reports that it cannot reach the warehouse rather than
+loading.
 
 ### Ask your data
 
@@ -446,5 +457,8 @@ locking before anyone else could safely apply.
 it takes under a second. That would need revisiting long before real production volume
 ([ADR 0003](docs/adr/0003-incremental-sales-fact.md)).
 
-**The Snowflake trial is time-boxed.** When it lapses, everything still runs on DuckDB,
-which is exactly why the project was built that way round.
+**The Snowflake trial has lapsed and its warehouses are suspended**, so the cloud half no
+longer runs without adding billing. Everything still works on DuckDB, which is exactly why
+the project was built that way round. The cost figures and the dual-engine comparison above
+both date from while it was live, and the contract models, which arrived afterwards, have
+never run there at all.

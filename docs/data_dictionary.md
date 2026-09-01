@@ -107,9 +107,10 @@ just records the dates.
 
 # Marts
 
-The star schema analysts and the dashboard query. Four dimensions, three facts, joined on
-natural keys. Everything below is built by dbt and exists identically on DuckDB and
-Snowflake.
+The star schema analysts and the dashboard query. Five dimensions, four facts, joined on
+natural keys, all built by dbt. Everything except the two contract models below was
+verified to be identical on DuckDB and Snowflake during the trial; the contract models came
+afterwards and have only been built on DuckDB.
 
 ## dim_suppliers
 
