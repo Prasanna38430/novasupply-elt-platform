@@ -189,8 +189,7 @@ work from any directory.
 
 ![Airflow DAG run](docs/images/airflow-dag.png)
 
-*The nightly pipeline in Airflow, every task green. The screenshot predates the
-contract-generation step, so it shows six.*
+*The nightly pipeline in Airflow, all seven tasks green.*
 
 Airflow runs the whole pipeline on a nightly schedule. Bring it up with:
 

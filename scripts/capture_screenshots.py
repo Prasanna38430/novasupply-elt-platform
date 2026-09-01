@@ -1,4 +1,4 @@
-"""Capture the dashboard screenshots the README embeds.
+"""Capture the screenshots the README embeds.
 
 Screenshots go stale quietly. The ones in this repo drifted a month behind the code before
 anybody noticed, so regenerating them is a script rather than a memory of which windows to
@@ -9,11 +9,17 @@ browser to download. Playwright is a development tool and is deliberately not in
 requirements.txt, which describes what the platform needs to run:
 
     pip install playwright
-    streamlit run dashboards/app.py       # in another terminal
+
+    # dashboard panels: needs the app and Ollama running
+    streamlit run dashboards/app.py
     python scripts/capture_screenshots.py
 
-Ollama must be running, since both AI panels are captured mid-answer. Generation is slow on
-CPU, hence the unusually patient timeouts.
+    # the DAG: needs the Airflow stack up, with at least one finished run
+    docker compose up -d --build
+    python scripts/capture_screenshots.py --airflow
+
+Both AI panels are captured after a real answer, and generation is slow on CPU, hence the
+unusually patient timeouts.
 """
 from __future__ import annotations
 
@@ -25,6 +31,7 @@ from playwright.sync_api import sync_playwright
 REPO_ROOT = Path(__file__).resolve().parent.parent
 IMAGES_DIR = REPO_ROOT / "docs" / "images"
 APP_URL = "http://localhost:8501"
+AIRFLOW_URL = "http://localhost:8080"
 
 VIEWPORT = {"width": 1440, "height": 1000}
 
@@ -90,19 +97,53 @@ def capture(page, shot: dict) -> None:
     print(f"  wrote {out.relative_to(REPO_ROOT)}")
 
 
+def capture_airflow(page) -> None:
+    """Screenshot the DAG's graph view, with a finished run selected.
+
+    The credentials are the throwaway pair docker-compose sets for local development and
+    the README documents; there is nothing here worth protecting.
+    """
+    page.goto(f"{AIRFLOW_URL}/login/", wait_until="domcontentloaded", timeout=60_000)
+    if page.locator("input[name='username']").count():
+        page.fill("input[name='username']", "admin")
+        page.fill("input[name='password']", "admin")
+        page.click("input[type='submit'], button[type='submit']")
+        page.wait_for_load_state("networkidle", timeout=60_000)
+
+    page.goto(
+        f"{AIRFLOW_URL}/dags/novasupply_pipeline/graph",
+        wait_until="networkidle",
+        timeout=60_000,
+    )
+    # The graph is drawn client-side after the run data arrives.
+    page.wait_for_selector("text=generate_supplier_documents", timeout=60_000)
+    page.wait_for_timeout(4_000)
+
+    # The graph canvas reserves far more height than seven nodes in a row need, so the
+    # full viewport is mostly empty grid. Crop to the band that actually carries content.
+    out = IMAGES_DIR / "airflow-dag.png"
+    page.screenshot(path=str(out), clip={"x": 0, "y": 0, "width": 1440, "height": 700})
+    print(f"  wrote {out.relative_to(REPO_ROOT)}")
+
+
 def main() -> None:
     sys.stdout.reconfigure(encoding="utf-8")
     IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+    airflow_only = "--airflow" in sys.argv
 
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(channel="chrome", headless=True)
         page = browser.new_page(viewport=VIEWPORT, device_scale_factor=2)
-        page.goto(APP_URL, wait_until="networkidle", timeout=60_000)
-        page.wait_for_selector("h1", timeout=60_000)
 
-        for shot in SHOTS:
-            print(shot["name"])
-            capture(page, shot)
+        if airflow_only:
+            print("airflow-dag.png")
+            capture_airflow(page)
+        else:
+            page.goto(APP_URL, wait_until="networkidle", timeout=60_000)
+            page.wait_for_selector("h1", timeout=60_000)
+            for shot in SHOTS:
+                print(shot["name"])
+                capture(page, shot)
 
         browser.close()
 
