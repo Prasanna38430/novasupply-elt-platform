@@ -18,6 +18,10 @@ requirements.txt, which describes what the platform needs to run:
     docker compose up -d --build
     python scripts/capture_screenshots.py --airflow
 
+    # the lineage graph: needs dbt docs served
+    cd dbt && dbt docs generate --profiles-dir . && dbt docs serve --profiles-dir . --port 8081
+    python scripts/capture_screenshots.py --lineage
+
 Both AI panels are captured after a real answer, and generation is slow on CPU, hence the
 unusually patient timeouts.
 """
@@ -32,6 +36,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 IMAGES_DIR = REPO_ROOT / "docs" / "images"
 APP_URL = "http://localhost:8501"
 AIRFLOW_URL = "http://localhost:8080"
+DBT_DOCS_URL = "http://localhost:8081"
 
 VIEWPORT = {"width": 1440, "height": 1000}
 
@@ -126,10 +131,45 @@ def capture_airflow(page) -> None:
     print(f"  wrote {out.relative_to(REPO_ROOT)}")
 
 
+def capture_lineage(page) -> None:
+    """Screenshot dbt's lineage graph, with Elementary's own models filtered out.
+
+    dbt docs encodes the graph's state in the URL fragment, so the exclusion goes straight
+    into the address rather than being typed into the filter box and submitted: `g_v=1`
+    opens the graph, `g_e` is the --exclude expression. Elementary contributes thirty
+    models of its own, which bury the ones this project actually built.
+    """
+    page.goto(
+        f"{DBT_DOCS_URL}/#!/overview?g_v=1&g_e=package:elementary",
+        wait_until="networkidle",
+        timeout=60_000,
+    )
+    page.wait_for_timeout(3_000)
+
+    # The fragment fills the --exclude box but does not redraw: the graph stays empty until
+    # the button is pressed, so the URL alone gets you a blank canvas with a filter set.
+    page.click("input[value='Update Graph']")
+
+    # The graph draws onto a canvas rather than into SVG, so there is no node text to wait
+    # for and no way to assert on its contents from the DOM. Wait for the canvas to be
+    # laid out, then give the renderer a fixed moment. This one is checked by eye.
+    page.wait_for_function(
+        "() => { const c = document.querySelector('#graph-viz-wrapper canvas');"
+        "return c && c.clientWidth > 200; }",
+        timeout=60_000,
+    )
+    page.wait_for_timeout(6_000)
+
+    out = IMAGES_DIR / "dbt-lineage.png"
+    page.screenshot(path=str(out))
+    print(f"  wrote {out.relative_to(REPO_ROOT)}")
+
+
 def main() -> None:
     sys.stdout.reconfigure(encoding="utf-8")
     IMAGES_DIR.mkdir(parents=True, exist_ok=True)
     airflow_only = "--airflow" in sys.argv
+    lineage_only = "--lineage" in sys.argv
 
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(channel="chrome", headless=True)
@@ -138,6 +178,9 @@ def main() -> None:
         if airflow_only:
             print("airflow-dag.png")
             capture_airflow(page)
+        elif lineage_only:
+            print("dbt-lineage.png")
+            capture_lineage(page)
         else:
             page.goto(APP_URL, wait_until="networkidle", timeout=60_000)
             page.wait_for_selector("h1", timeout=60_000)
