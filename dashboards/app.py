@@ -259,9 +259,20 @@ try:
 except Exception:  # noqa: BLE001 - quarantine table may not exist on a fresh build
     quarantined = None
 
+try:
+    # Counted from Elementary's own record of the last build rather than typed in here.
+    # The hardcoded figure this replaces went stale twice in a single afternoon, once for
+    # every batch of models added, and a dashboard advertising the wrong number of tests is
+    # worse than one advertising none.
+    elementary_schema = "NOVASUPPLY.ELEMENTARY" if warehouse == "snowflake" else "elementary"
+    t = query(f"select count(*) as n from {elementary_schema}.dbt_tests", warehouse)
+    test_count = int(t["n"].iloc[0])
+except Exception:  # noqa: BLE001 - Elementary is excluded from fast local builds
+    test_count = None
+
 d1, d2 = st.columns(2)
 d1.metric("Quarantined sale rows", quarantined if quarantined is not None else "n/a")
-d2.metric("dbt tests in the build", 146)
+d2.metric("dbt tests in the build", test_count if test_count is not None else "n/a")
 
 if quarantined == 0:
     st.success("No rows quarantined in the latest load.")
