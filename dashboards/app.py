@@ -20,6 +20,7 @@ import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
 
+import contract_qa
 import nl_query
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -317,3 +318,67 @@ if question:
         st.info(str(exc))
     except Exception as exc:  # noqa: BLE001 - surface the model's mistake, not a stack trace
         st.error(f"That didn't run: {exc}")
+
+st.divider()
+
+
+# Ask about the contracts
+
+st.subheader("Ask about the contracts")
+st.caption(
+    "The panel above queries the numbers. This one reads the supplier contracts, which "
+    "are prose. The clauses behind every answer are shown underneath it, so the answer "
+    "can be checked against the text rather than taken on trust."
+)
+
+CONTRACT_QUESTIONS = [
+    "Quel préavis faut-il pour résilier le contrat avec Regnier ?",
+    "Quelle pénalité s'applique si Guilbert S.A. livre en retard ?",
+    "Sous quel délai faut-il payer les factures de Martinez SA ?",
+]
+
+if warehouse == "snowflake":
+    st.info(
+        "The contract index is built locally into DuckDB by ingestion/embed_documents.py, "
+        "so this panel runs against DuckDB only. Snowflake has a native VECTOR type and "
+        "VECTOR_COSINE_SIMILARITY, so the same design ports; it just is not built yet."
+    )
+else:
+    contract_question = st.text_input(
+        "Ask a question about the supplier contracts",
+        placeholder=CONTRACT_QUESTIONS[0],
+    )
+    st.caption("Try: " + "  •  ".join(f"*{q}*" for q in CONTRACT_QUESTIONS[:2]))
+
+    if contract_question:
+        answer_box = st.empty()
+        try:
+            suppliers_for_lookup = query(
+                "select supplier_id, supplier_name from {marts}.dim_suppliers", warehouse
+            )
+            with st.status("Searching the contracts...", expanded=True) as contract_status:
+                text, clauses, supplier_id = contract_qa.answer(
+                    duckdb_connection(),
+                    contract_question,
+                    suppliers_for_lookup,
+                    on_token=lambda partial: answer_box.markdown(partial),
+                )
+                contract_status.update(label="Done", state="complete", expanded=False)
+            answer_box.markdown(text)
+
+            if supplier_id:
+                st.caption(
+                    f"Recognised {supplier_id} in the question and searched only their "
+                    "documents. Superseded clauses are excluded."
+                )
+            for clause in clauses.itertuples():
+                label = (
+                    f"{clause.document_id} - {clause.article_title}"
+                    f"{'  (avenant)' if clause.document_type == 'avenant' else ''}"
+                )
+                with st.expander(label):
+                    st.text(clause.chunk_text)
+        except contract_qa.ollama.OllamaUnavailable as exc:
+            st.info(str(exc))
+        except Exception as exc:  # noqa: BLE001 - show what broke, not a stack trace
+            st.error(f"That didn't run: {exc}")
