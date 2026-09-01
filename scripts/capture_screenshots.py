@@ -1,0 +1,111 @@
+"""Capture the dashboard screenshots the README embeds.
+
+Screenshots go stale quietly. The ones in this repo drifted a month behind the code before
+anybody noticed, so regenerating them is a script rather than a memory of which windows to
+arrange. Run it after changing anything the README shows.
+
+It drives the Chrome already installed on the machine (`channel="chrome"`), so there is no
+browser to download. Playwright is a development tool and is deliberately not in
+requirements.txt, which describes what the platform needs to run:
+
+    pip install playwright
+    streamlit run dashboards/app.py       # in another terminal
+    python scripts/capture_screenshots.py
+
+Ollama must be running, since both AI panels are captured mid-answer. Generation is slow on
+CPU, hence the unusually patient timeouts.
+"""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+from playwright.sync_api import sync_playwright
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+IMAGES_DIR = REPO_ROOT / "docs" / "images"
+APP_URL = "http://localhost:8501"
+
+VIEWPORT = {"width": 1440, "height": 1000}
+
+# A question answered by a 3B model on CPU can take the better part of a minute, and the
+# first one after an idle period also pays to load the model.
+ANSWER_TIMEOUT_MS = 180_000
+
+# Both answers stream, so anything that appears while they are still arriving is a trap:
+# the first version of this script waited on the code block and on an expander, and caught
+# both panels mid-spinner with half a query and no results. Each readiness check below can
+# only become true once the panel has actually finished.
+SHOTS = [
+    {
+        "name": "ask-your-data.png",
+        "placeholder": "Which category has the most stockouts",
+        "question": "Which suppliers deliver late most often?",
+        "heading": "Ask your data (AI)",
+        # A results grid that was not on the page before the question was asked. The SQL
+        # itself streams in token by token, so its presence proves nothing.
+        "ready": "() => document.querySelectorAll('[data-testid=\"stDataFrame\"]').length > {before}",
+        "count": "[data-testid='stDataFrame']",
+    },
+    {
+        "name": "ask-contracts.png",
+        "placeholder": "Quel préavis faut-il",
+        "question": "Sous combien de jours Regnier doit-il livrer une commande ?",
+        "heading": "Ask about the contracts",
+        # A document reference can only be on the page once retrieval has returned clauses
+        # and the model has cited one.
+        "ready": "() => document.body.innerText.includes('CTR-2026')",
+        "count": None,
+    },
+]
+
+
+def capture(page, shot: dict) -> None:
+    before = page.locator(shot["count"]).count() if shot["count"] else 0
+
+    box = page.get_by_placeholder(shot["placeholder"])
+    box.scroll_into_view_if_needed()
+    box.fill(shot["question"])
+    box.press("Enter")
+
+    print(f"  waiting for an answer to: {shot['question']}")
+    page.wait_for_function(shot["ready"].format(before=before), timeout=ANSWER_TIMEOUT_MS)
+    # The status widget collapses to "Done" a beat after the content lands.
+    page.wait_for_timeout(3_000)
+
+    # Put the heading just under the top of the frame, so the answer and the clauses
+    # beneath it are what fills the shot.
+    page.evaluate(
+        """(heading) => {
+            const el = [...document.querySelectorAll('h1,h2,h3')]
+                .find(h => h.innerText.trim() === heading);
+            if (el) { el.scrollIntoView({block: 'start'}); window.scrollBy(0, -24); }
+        }""",
+        shot["heading"],
+    )
+    page.wait_for_timeout(1_000)
+
+    out = IMAGES_DIR / shot["name"]
+    page.screenshot(path=str(out))
+    print(f"  wrote {out.relative_to(REPO_ROOT)}")
+
+
+def main() -> None:
+    sys.stdout.reconfigure(encoding="utf-8")
+    IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(channel="chrome", headless=True)
+        page = browser.new_page(viewport=VIEWPORT, device_scale_factor=2)
+        page.goto(APP_URL, wait_until="networkidle", timeout=60_000)
+        page.wait_for_selector("h1", timeout=60_000)
+
+        for shot in SHOTS:
+            print(shot["name"])
+            capture(page, shot)
+
+        browser.close()
+
+
+if __name__ == "__main__":
+    main()
