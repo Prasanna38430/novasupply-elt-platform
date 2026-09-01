@@ -77,16 +77,28 @@ def resolve_supplier(question: str, suppliers: pd.DataFrame) -> str | None:
 
 
 def _fts_available(con) -> bool:
-    """Whether the BM25 index exists, so an older warehouse still answers, just worse."""
-    try:
-        con.execute("load fts")
+    """Whether the BM25 index exists, so a warehouse built before it still answers.
+
+    Asks the catalogue whether the index's generated macro is there, rather than running a
+    query against it and reading the failure. Both a missing index and a missing table
+    raise `CatalogException`, so catching that could not tell "no BM25 yet" apart from
+    "the chunk table has gone", and the second is a real fault that deserves to surface.
+    This asks the narrower question and lets every genuine error through.
+
+    Getting it wrong is expensive but invisible: falling back to vectors alone drops
+    accuracy on amended clauses from 90% to 50% while the panel still looks healthy.
+    """
+    con.execute("install fts")
+    con.execute("load fts")
+    return bool(
         con.execute(
-            "select fts_search_contract_chunks.match_bm25(chunk_id, 'test') "
-            "from search.contract_chunks limit 1"
-        )
-        return True
-    except Exception:  # noqa: BLE001 - absence of an index is not an error worth raising
-        return False
+            """
+            select count(*) from duckdb_functions()
+            where function_name = 'match_bm25'
+              and schema_name = 'fts_search_contract_chunks'
+            """
+        ).fetchone()[0]
+    )
 
 
 def search(
