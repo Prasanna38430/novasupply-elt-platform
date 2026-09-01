@@ -16,9 +16,9 @@ jobs:
     name: Build and test the pipeline
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           cache: pip
@@ -54,7 +54,7 @@ jobs:
       # Makes a failed run diagnosable without rerunning it locally.
       - name: Upload dbt artefacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dbt-target
           path: |
@@ -66,9 +66,9 @@ jobs:
     name: Validate Airflow DAG
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           cache: pip
