@@ -34,10 +34,12 @@ flowchart LR
     subgraph gen["Generation"]
         G1[generate_dimensions.py]
         G2[generate_facts.py]
+        G3[generate_supplier_documents.py]
     end
 
     subgraph raw["Raw zone"]
         L[("data/raw/<br/>dt=YYYY-MM-DD")]
+        C[("data/raw/contracts/<br/>French prose")]
         S3[("S3<br/>eu-west-3")]
     end
 
@@ -49,22 +51,34 @@ flowchart LR
         M["MARTS<br/>star schema"]
         Q["QUARANTINE<br/>rejected rows"]
         SN["SNAPSHOTS<br/>SCD2 history"]
+        SE["SEARCH<br/>chunks, vectors, BM25"]
     end
 
+    SD[("dbt seed<br/>contract_terms.csv")]
     D[Streamlit dashboard]
 
     G1 --> L
     G2 --> L
+    G3 --> C
     L -->|upload_to_s3.py| S3
     L -->|load_raw.py| R
+    C -->|load_raw.py<br/>catalogue| R
     S3 -->|COPY INTO<br/>storage integration| R
+    C -->|embed_documents.py<br/>local model| SE
+    C -->|extract_contract_terms.py<br/>local model| SD
+    SD -->|dbt seed| ST
     R -->|dbt| ST
     ST -->|dbt| IN
     ST -->|dbt| Q
     ST -->|dbt snapshot| SN
     IN -->|dbt| M
     M --> D
+    SE --> D
 ```
+
+`embed_documents.py` and `extract_contract_terms.py` are the only steps the scheduler does
+not run: both need a local LLM, so they run by hand when the contracts change and their
+output is committed ([ADR 0009](docs/adr/0009-llm-steps-outside-ci.md)).
 
 The reasoning behind each layer is in [docs/architecture.md](docs/architecture.md).
 
@@ -87,7 +101,8 @@ exactly across DuckDB and Snowflake. Switching is a profile change, not a fork.
 - CI: GitHub Actions
 - Data quality: dbt tests + Elementary
 - Serving: Streamlit
-- AI: local Ollama for natural-language-to-SQL over the marts
+- AI: local Ollama for natural-language-to-SQL, contract term extraction, and hybrid
+  BM25 + vector retrieval over the contracts (no API key, no cloud calls, no cost)
 
 ## Why DuckDB first
 
@@ -166,7 +181,8 @@ work from any directory.
 
 ![Airflow DAG run](docs/images/airflow-dag.png)
 
-*The nightly pipeline in Airflow, all six tasks green.*
+*The nightly pipeline in Airflow, every task green. The screenshot predates the
+contract-generation step, so it shows six.*
 
 Airflow runs the whole pipeline on a nightly schedule. Bring it up with:
 
@@ -175,11 +191,17 @@ docker compose up -d --build
 ```
 
 The UI is at http://localhost:8080 (admin / admin, local development only). The
-`novasupply_pipeline` DAG chains the six steps in order:
+`novasupply_pipeline` DAG chains the seven steps in order:
 
 ```text
-generate_dimensions -> generate_facts -> load_raw -> dbt_run -> dbt_snapshot -> dbt_test
+generate_dimensions -> generate_facts -> generate_supplier_documents
+  -> load_raw -> dbt_run -> dbt_snapshot -> dbt_test
 ```
+
+Embedding the contracts and extracting their terms are deliberately *not* in the DAG:
+both need a local model, and 1.9GB of weights does not fit the 2GB container budget. Their
+output is committed instead, as a dbt seed
+([ADR 0009](docs/adr/0009-llm-steps-outside-ci.md)).
 
 A full run takes about five minutes. Tear it down with `docker compose down`, or
 `docker compose down -v` to drop the Airflow metadata database as well.
@@ -201,9 +223,57 @@ dbt docs serve --profiles-dir .
 ```
 
 Written docs live in `docs/`: [architecture](docs/architecture.md),
-[data dictionary](docs/data_dictionary.md), [cost](docs/cost.md), and six
+[data dictionary](docs/data_dictionary.md), [cost](docs/cost.md), and nine
 [architecture decision records](docs/adr/) covering the choices that were genuinely
 arguable.
+
+## Contracts: turning prose into columns
+
+Everything above arrives as rows. Supplier contracts do not, and the thing the business
+needs from them is buried in a clause rather than sitting in a column. The warehouse knew
+what suppliers *did*; it had no idea what they had *promised*.
+
+Twenty-five French contracts (twenty master agreements, five amendments) are generated as
+prose, then a local model reads the commercial terms out of each one into
+`dbt/seeds/contract_terms.csv`. Extraction is scored against an answer key the generator
+writes alongside the corpus, and currently reads **155 of 155 fields correctly**, French
+decimals (`1,3 %`) included.
+
+That unlocks the join the platform existed to make. `fct_contract_compliance` measures
+every delivered order against the contract in force **on the day it was placed**, which
+matters because amendments land mid-history and judging an April delivery against a June
+window would manufacture breaches that never happened. It carries two different notions of
+late, deliberately:
+
+- `is_late_vs_promise` — missed the date promised on that order, the operational question
+- `is_contract_breach` — took longer than the framework contract allows, the commercial
+  one, and the one with money attached
+
+Across 7,241 delivered orders those disagree 1,749 times against 889, so collapsing them
+into a single "late" number would hide most of the exposure.
+
+```bash
+python ingestion/generate_supplier_documents.py   # no model needed
+python ingestion/embed_documents.py               # needs Ollama
+python ingestion/extract_contract_terms.py        # needs Ollama, ~20 min on CPU
+python scripts/evaluate_retrieval.py              # scores retrieval on a golden set
+```
+
+Retrieval is measured rather than asserted, on 120 questions derived from the corpus:
+
+| strategy | overall | amended clauses |
+|---|---|---|
+| semantic only | 90 % | 0 % |
+| + supersession filter | 92 % | 20 % |
+| + supplier filter | 96 % | 50 % |
+| + BM25, fused (hybrid) | 99 % | 90 % |
+
+The second column is the one that matters: an amendment replaces a clause without removing
+the original, so a miss there quotes terms that are no longer in force. Plain vector search
+got every one of those wrong, for a reason worth knowing — the superseded clause states its
+term outright while the amendment only talks *about* replacing one, so the obsolete text is
+genuinely the better semantic match. [ADR 0008](docs/adr/0008-retrieval-over-the-contract-corpus.md)
+has the rest, including why adding BM25 changed nothing until two settings were fixed.
 
 ## Data quality
 
@@ -302,6 +372,23 @@ snapshot, and null delay fields on open orders). Expect 15-25 seconds per questi
 CPU-only machine. [ADR 0007](docs/adr/0007-local-llm-for-nl-to-sql.md) covers why this
 skips RAG, why a small code-tuned model, and where it still falls short.
 
+### Ask about the contracts
+
+A second panel answers questions about the contract prose instead of the numbers:
+
+> *Sous combien de jours Regnier doit-il livrer une commande ?*
+> *Quelle pénalité s'applique si Guilbert S.A. livre en retard ?*
+
+It names the supplier it recognised, searches only their documents, excludes superseded
+clauses, and shows every clause it used underneath the answer, so a wrong answer is
+visibly wrong rather than merely confident. On the question above it answers seven days,
+citing the amendment, where the original contract it replaced says ten.
+
+Both models pull once: `ollama pull qwen2.5-coder:3b` and
+`ollama pull nomic-embed-text`. The index is built locally into DuckDB, so this panel runs
+against DuckDB only; Snowflake has a native `VECTOR` type and the design ports, but it is
+not built, and the panel says so instead of failing.
+
 ## Limitations and trade-offs
 
 Worth being straight about what this is and is not.
@@ -309,6 +396,20 @@ Worth being straight about what this is and is not.
 **The data is synthetic.** It is generated by a seeded inventory simulation, not extracted
 from a real retailer. That is deliberate, it makes the project reproducible and puts a
 genuine causal chain in the data, but no amount of realistic shaping makes it real data.
+
+**The amended suppliers breach their contracts on every order, and that is an artefact.**
+Amendments tighten the delivery window by a few days, while the inventory simulation that
+produces the deliveries knows nothing about contracts and carries on at its original pace.
+So the five amended suppliers show a 100% breach rate after the amendment date. The
+arithmetic is right and the temporal join is right, but it is not a finding: a real
+supplier renegotiating a tighter window would usually try to meet it. It does happen to
+illustrate a genuine procurement pattern, terms agreed that the supplier cannot hold, but
+it was not designed to.
+
+**Extraction accuracy is measured on templated documents.** 155 of 155 fields is a real
+score against a held-out answer key, not an impression, but the corpus is generated from a
+handful of templates. Real contracts vary in wording, layout and quality of scan, and the
+number would fall.
 
 **There is no personal data, so RGPD is demonstrated rather than exercised.** Suppliers are
 companies. The role-based masking protects commercially sensitive supplier terms, which is
