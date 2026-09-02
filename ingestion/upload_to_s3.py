@@ -16,7 +16,7 @@ import os
 import boto3
 from botocore.exceptions import ClientError
 
-from config import PROJECT_ROOT, RAW_DATA_DIR
+from config import RAW_DATA_DIR
 
 
 def s3_client():

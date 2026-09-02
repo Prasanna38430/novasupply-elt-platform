@@ -253,8 +253,8 @@ matters because amendments land mid-history and judging an April delivery agains
 window would manufacture breaches that never happened. It carries two different notions of
 late, deliberately:
 
-- `is_late_vs_promise` — missed the date promised on that order, the operational question
-- `is_contract_breach` — took longer than the framework contract allows, the commercial
+- `is_late_vs_promise`: missed the date promised on that order, the operational question
+- `is_contract_breach`: took longer than the framework contract allows, the commercial
   one, and the one with money attached
 
 Across 7,241 delivered orders those disagree 1,749 times against 889, so collapsing them
@@ -278,7 +278,7 @@ Retrieval is measured rather than asserted, on 120 questions derived from the co
 
 The second column is the one that matters: an amendment replaces a clause without removing
 the original, so a miss there quotes terms that are no longer in force. Plain vector search
-got every one of those wrong, for a reason worth knowing — the superseded clause states its
+got every one of those wrong, for a reason worth knowing: the superseded clause states its
 term outright while the amendment only talks *about* replacing one, so the obsolete text is
 genuinely the better semantic match. [ADR 0008](docs/adr/0008-retrieval-over-the-contract-corpus.md)
 has the rest, including why adding BM25 changed nothing until two settings were fixed.
@@ -314,7 +314,7 @@ seconds. Because the generators are seeded, CI produces the same dataset every t
 failing test means the code changed rather than the data getting unlucky. A second job
 parses the Airflow DAG, which otherwise only breaks when the scheduler tries to run it.
 
-A `pytest` step covers the NL-to-SQL helper — chiefly the read-only gate that decides
+A `pytest` step covers the NL-to-SQL helper, chiefly the read-only gate that decides
 whether generated SQL is allowed near the warehouse, which is the one place in this project
 where a bug is a security problem rather than a wrong number. It stubs the model out, so it
 needs no Ollama and adds under a second to the build.

@@ -11,7 +11,7 @@ from the prose, and scoring retrieval. Neither place that would normally run the
 CI runs on a GitHub-hosted runner with no Ollama and no GPU; a model would mean pulling
 about 2GB per job onto a build that finishes in a hundred seconds. Airflow runs in Docker
 under a 2GB container budget, which is already why the executor is LocalExecutor rather
-than Celery ([ADR 0005](0005-airflow-localexecutor.md)) — `qwen2.5-coder:3b` is 1.9GB of
+than Celery ([ADR 0005](0005-airflow-localexecutor.md)), and `qwen2.5-coder:3b` is 1.9GB of
 weights before the runtime around it.
 
 The awkward part is that `dim_supplier_contracts` and `fct_contract_compliance` are
@@ -51,5 +51,5 @@ bigger Airflow container.
 
 Retrieval scoring lives in `scripts/` for the same reason: a quality check that needs a
 model cannot gate a build. What CI *can* test is the logic around the model, and that is
-covered — the read-only SQL gate, the French decimal parsing, supplier resolution and the
+covered: the read-only SQL gate, the French decimal parsing, supplier resolution and the
 fusion constant.

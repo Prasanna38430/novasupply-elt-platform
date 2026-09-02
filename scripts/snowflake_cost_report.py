@@ -81,7 +81,7 @@ def main() -> None:
     cols = [d[0].lower() for d in cur.description]
     if rows:
         r = rows[0]
-        print(f"\nwarehouse settings")
+        print("\nwarehouse settings")
         print(f"  size          : {r[cols.index('size')]}")
         print(f"  auto_suspend  : {r[cols.index('auto_suspend')]}s")
         print(f"  state         : {r[cols.index('state')]}")

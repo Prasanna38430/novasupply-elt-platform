@@ -26,8 +26,8 @@ import re
 from typing import Callable
 
 import ollama
-# Re-exported: the dashboard catches these as nl_query.OllamaUnavailable.
-from ollama import ModelError, OllamaUnavailable  # noqa: F401
+# Re-exported: the dashboard catches this as nl_query.OllamaUnavailable.
+from ollama import OllamaUnavailable  # noqa: F401
 
 # Generation runs at single-digit tokens/sec on CPU, so a runaway answer is a hang. No
 # reasonable query against seven tables needs more than this.
